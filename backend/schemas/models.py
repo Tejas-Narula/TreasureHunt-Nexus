@@ -1,0 +1,81 @@
+from pydantic import BaseModel, Field
+from typing import List, Optional
+from datetime import datetime
+from typing import Literal
+
+GameStatus = Literal["waiting", "active", "ended"]
+StepType = Literal["qr_scan", "special_task"]
+MemberStatus = Literal["completed", "admin_override", "task_approved"]
+
+class GameState(BaseModel):
+    status: GameStatus = "waiting"
+    start_time: Optional[datetime] = None
+
+class StepConfig(BaseModel):
+    step_number: int
+    step_type: StepType
+    location_name: str
+    clue_text: str
+    task_description: Optional[str] = None
+    qr_token: Optional[str] = None
+
+class Trail(BaseModel):
+    role_name: str
+    steps: List[StepConfig] = []
+
+class PlayerHistory(BaseModel):
+    step_number: int
+    scanned_at: datetime
+    status: MemberStatus
+
+class MemberCreate(BaseModel):
+    player_name: str
+    phone_number: str
+    character_role: Optional[str] = None
+
+class MemberUpdate(BaseModel):
+    player_name: Optional[str] = None
+    phone_number: Optional[str] = None
+    character_role: Optional[str] = None
+
+class Member(BaseModel):
+    id: str
+    player_name: str
+    phone_number: str
+    character_role: Optional[str] = None
+    current_step: int = 0
+    history: List[PlayerHistory] = []
+
+class TeamCreate(BaseModel):
+    team_id: str
+    team_name: str
+
+class Team(BaseModel):
+    id: str
+    team_id: str
+    team_name: str
+    completed: bool = False
+    penalty_minutes: int = 0
+    members: List[Member] = []
+
+class LoginRequest(BaseModel):
+    team_id: str
+    phone_number: str
+
+class LoginResponse(BaseModel):
+    team: Team
+    member: Member
+
+class ScanRequest(BaseModel):
+    team_id: str
+    player_id: str
+    qr_token: str
+
+class ScanResponse(BaseModel):
+    success: bool
+    message: str
+    next_step: Optional[StepConfig] = None
+    completed: bool = False
+
+class OverrideStepRequest(BaseModel):
+    new_step: int

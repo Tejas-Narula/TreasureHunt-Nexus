@@ -1,0 +1,25 @@
+{
+  "name": "nexus",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "concurrently \"npm --prefix frontend run dev\" \"uvicorn backend.api.index:app --reload\"",
+    "dev": "concurrently \"npm --prefix frontend run dev\" \"uvicorn backend.api.index:app --reload\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tejas-Narula/TreasureHunt-Nexus.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Tejas-Narula/TreasureHunt-Nexus/issues"
+  },
+  "homepage": "https://github.com/Tejas-Narula/TreasureHunt-Nexus#readme",
+  "devDependencies": {
+    "concurrently": "^10.0.4"
+  }
+}

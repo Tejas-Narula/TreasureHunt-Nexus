@@ -3,7 +3,7 @@ from typing import List, Optional
 from datetime import datetime
 from typing import Literal
 
-GameStatus = Literal["waiting", "active", "ended"]
+GameStatus = Literal["waiting", "active", "paused", "ended"]
 StepType = Literal["qr_scan", "special_task"]
 MemberStatus = Literal["completed", "admin_override", "task_approved"]
 
@@ -49,6 +49,14 @@ class Member(BaseModel):
 class TeamCreate(BaseModel):
     team_id: str
     team_name: str
+
+class TeamWithMemberCreate(BaseModel):
+    team_id: str
+    team_name: Optional[str] = None
+    phone_number: str
+    player_name: Optional[str] = "Captain"
+    character_role: Optional[str] = "demogorgon_hunter"
+
 
 class Team(BaseModel):
     id: str

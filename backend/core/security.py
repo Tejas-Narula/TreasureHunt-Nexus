@@ -2,17 +2,21 @@ from fastapi import Security, HTTPException, status
 from fastapi.security import APIKeyHeader
 from core.config import settings
 
-api_key_header = APIKeyHeader(name="X-Admin-Secret", auto_error=False)
+email_header = APIKeyHeader(name="X-Admin-Email", auto_error=False)
+password_header = APIKeyHeader(name="X-Admin-Password", auto_error=False)
 
-async def verify_admin(api_key_header: str = Security(api_key_header)):
-    if not api_key_header:
+async def verify_admin(
+    email: str = Security(email_header),
+    password: str = Security(password_header)
+):
+    if not email or not password:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Admin secret header missing",
+            detail="Admin credentials missing",
         )
-    if api_key_header != settings.ADMIN_SECRET_KEY:
+    if email != settings.ADMIN_EMAIL or password != settings.ADMIN_PASSWORD:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid admin secret",
+            detail="Invalid admin credentials",
         )
-    return api_key_header
+    return email

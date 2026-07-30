@@ -27,9 +27,17 @@ def get_firebase_app():
         decoded_cert = base64.b64decode(settings.FIREBASE_SERVICE_ACCOUNT_B64).decode("utf-8")
         cert_dict = json.loads(decoded_cert)
         cred = credentials.Certificate(cert_dict)
-    elif settings.FIREBASE_CREDENTIALS_PATH and os.path.exists(settings.FIREBASE_CREDENTIALS_PATH):
-        # Load from file
-        cred = credentials.Certificate(settings.FIREBASE_CREDENTIALS_PATH)
+    elif settings.FIREBASE_CREDENTIALS_PATH:
+        cred_path = settings.FIREBASE_CREDENTIALS_PATH
+        if not os.path.isabs(cred_path):
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            possible_path = os.path.join(base_dir, cred_path)
+            if os.path.exists(possible_path):
+                cred_path = possible_path
+        if os.path.exists(cred_path):
+            cred = credentials.Certificate(cred_path)
+        else:
+            cred = credentials.ApplicationDefault()
     else:
         # Fallback to application default credentials (useful for GCP/local testing if logged in)
         cred = credentials.ApplicationDefault()

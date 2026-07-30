@@ -1,27 +1,51 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from core.firebase import get_db
 from core.security import verify_admin
-from schemas.models import TeamCreate, MemberCreate, MemberUpdate, OverrideStepRequest, Trail
+from core.websocket import manager
+from schemas.models import TeamCreate, TeamWithMemberCreate, MemberCreate, MemberUpdate, OverrideStepRequest, Trail, GameState
+from typing import Union
 from datetime import datetime
 import uuid
 
+async def broadcast_ws(message: dict):
+    await manager.broadcast(message)
+
 router = APIRouter(prefix="/api/admin", tags=["Admin"], dependencies=[Depends(verify_admin)])
 
+@router.get("/game/state", response_model=GameState)
+def get_admin_game_state():
+    db = get_db()
+    state_doc = db.collection("game_config").document("global_state").get()
+    if not state_doc.exists:
+        return GameState(status="waiting")
+    return GameState(**state_doc.to_dict())
+
 @router.put("/game/start")
-def start_game():
+def start_game(background_tasks: BackgroundTasks):
     db = get_db()
     db.collection("game_config").document("global_state").set({
         "status": "active",
         "start_time": datetime.utcnow().isoformat()
-    })
+    }, merge=True)
+    background_tasks.add_task(broadcast_ws, {"type": "game_state", "status": "active"})
     return {"status": "Game started"}
 
+@router.put("/game/pause")
+def pause_game(background_tasks: BackgroundTasks):
+    db = get_db()
+    db.collection("game_config").document("global_state").set({
+        "status": "paused"
+    }, merge=True)
+    background_tasks.add_task(broadcast_ws, {"type": "game_state", "status": "paused"})
+    return {"status": "Game paused"}
+
 @router.put("/game/stop")
-def stop_game():
+def stop_game(background_tasks: BackgroundTasks):
     db = get_db()
     db.collection("game_config").document("global_state").set({
         "status": "ended"
     }, merge=True)
+    background_tasks.add_task(broadcast_ws, {"type": "game_state", "status": "ended"})
     return {"status": "Game stopped"}
 
 @router.get("/teams")
@@ -46,21 +70,66 @@ def list_teams():
     return teams
 
 @router.post("/teams")
-def create_team(team: TeamCreate):
+def create_team(team: Union[TeamWithMemberCreate, TeamCreate], background_tasks: BackgroundTasks):
     db = get_db()
+    
+    # Validate duplicate team_id
+    existing_teams = db.collection("teams").where("team_id", "==", team.team_id).get()
+    if len(existing_teams) > 0:
+        raise HTTPException(status_code=400, detail="Team ID already exists")
+
     team_doc_id = f"team_{uuid.uuid4().hex[:8]}"
+    team_name = getattr(team, "team_name", None) or f"Team {team.team_id}"
+    
     team_data = {
         "team_id": team.team_id,
-        "team_name": team.team_name,
+        "team_name": team_name,
         "completed": False,
         "penalty_minutes": 0
     }
     db.collection("teams").document(team_doc_id).set(team_data)
     team_data["id"] = team_doc_id
+    
+    phone_number = getattr(team, "phone_number", None)
+    if phone_number:
+        player_id = f"player_{uuid.uuid4().hex[:8]}"
+        player_name = getattr(team, "player_name", None) or "Captain"
+        character_role = getattr(team, "character_role", None) or "demogorgon_hunter"
+        
+        member_data = {
+            "player_name": player_name,
+            "phone_number": phone_number,
+            "character_role": character_role,
+            "current_step": 0,
+            "history": []
+        }
+        db.collection("teams").document(team_doc_id).collection("members").document(player_id).set(member_data)
+        member_data["id"] = player_id
+        team_data["members"] = [member_data]
+    else:
+        team_data["members"] = []
+
+    background_tasks.add_task(broadcast_ws, {"type": "teams_updated"})
     return team_data
 
+@router.delete("/teams/{team_doc_id}")
+def delete_team(team_doc_id: str, background_tasks: BackgroundTasks):
+    db = get_db()
+    team_ref = db.collection("teams").document(team_doc_id)
+    if not team_ref.get().exists:
+        raise HTTPException(status_code=404, detail="Team not found")
+        
+    members = team_ref.collection("members").stream()
+    for m in members:
+        team_ref.collection("members").document(m.id).delete()
+        
+    team_ref.delete()
+    background_tasks.add_task(broadcast_ws, {"type": "teams_updated"})
+    return {"status": "Team deleted successfully"}
+
+
 @router.post("/teams/{team_doc_id}/members")
-def add_member(team_doc_id: str, member: MemberCreate):
+def add_member(team_doc_id: str, member: MemberCreate, background_tasks: BackgroundTasks):
     db = get_db()
     player_id = f"player_{uuid.uuid4().hex[:8]}"
     member_data = {
@@ -72,10 +141,11 @@ def add_member(team_doc_id: str, member: MemberCreate):
     }
     db.collection("teams").document(team_doc_id).collection("members").document(player_id).set(member_data)
     member_data["id"] = player_id
+    background_tasks.add_task(broadcast_ws, {"type": "teams_updated"})
     return member_data
 
 @router.put("/teams/{team_doc_id}/members/{player_id}")
-def update_member(team_doc_id: str, player_id: str, member: MemberUpdate):
+def update_member(team_doc_id: str, player_id: str, member: MemberUpdate, background_tasks: BackgroundTasks):
     db = get_db()
     update_data = member.model_dump(exclude_unset=True)
     if not update_data:
@@ -83,10 +153,11 @@ def update_member(team_doc_id: str, player_id: str, member: MemberUpdate):
         
     member_ref = db.collection("teams").document(team_doc_id).collection("members").document(player_id)
     member_ref.update(update_data)
+    background_tasks.add_task(broadcast_ws, {"type": "teams_updated"})
     return {"status": "Updated successfully"}
 
 @router.put("/teams/{team_doc_id}/members/{player_id}/approve_task")
-def approve_task(team_doc_id: str, player_id: str):
+def approve_task(team_doc_id: str, player_id: str, background_tasks: BackgroundTasks):
     db = get_db()
     member_ref = db.collection("teams").document(team_doc_id).collection("members").document(player_id)
     member_doc = member_ref.get()
@@ -108,10 +179,11 @@ def approve_task(team_doc_id: str, player_id: str):
         "current_step": current_step + 1,
         "history": history
     })
+    background_tasks.add_task(broadcast_ws, {"type": "teams_updated"})
     return {"status": "Task approved", "new_step": current_step + 1}
 
 @router.put("/teams/{team_doc_id}/members/{player_id}/override_step")
-def override_step(team_doc_id: str, player_id: str, request: OverrideStepRequest):
+def override_step(team_doc_id: str, player_id: str, request: OverrideStepRequest, background_tasks: BackgroundTasks):
     db = get_db()
     member_ref = db.collection("teams").document(team_doc_id).collection("members").document(player_id)
     member_doc = member_ref.get()
@@ -133,7 +205,34 @@ def override_step(team_doc_id: str, player_id: str, request: OverrideStepRequest
         "current_step": request.new_step,
         "history": history
     })
+    background_tasks.add_task(broadcast_ws, {"type": "teams_updated"})
     return {"status": "Step overridden", "new_step": request.new_step}
+
+@router.put("/teams/{team_doc_id}/override_step")
+def override_team_step(team_doc_id: str, request: OverrideStepRequest, background_tasks: BackgroundTasks):
+    db = get_db()
+    team_ref = db.collection("teams").document(team_doc_id)
+    if not team_ref.get().exists:
+        raise HTTPException(status_code=404, detail="Team not found")
+        
+    members_ref = team_ref.collection("members").stream()
+    batch = db.batch()
+    for member_doc in members_ref:
+        member_data = member_doc.to_dict()
+        current_step = member_data.get("current_step", 0)
+        history = member_data.get("history", [])
+        history.append({
+            "step_number": current_step,
+            "scanned_at": datetime.utcnow().isoformat(),
+            "status": "admin_override"
+        })
+        batch.update(member_doc.reference, {
+            "current_step": request.new_step,
+            "history": history
+        })
+    batch.commit()
+    background_tasks.add_task(broadcast_ws, {"type": "teams_updated"})
+    return {"status": "Team step overridden", "new_step": request.new_step}
 
 @router.get("/trails")
 def get_trails():

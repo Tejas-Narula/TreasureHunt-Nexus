@@ -1,111 +1,248 @@
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
-
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  --bg-dark: #070204;
+  --bg-panel: rgba(18, 4, 8, 0.88);
+  --bg-card: rgba(28, 6, 12, 0.75);
+  --glow-red: #ff0033;
+  --glow-crimson: #e6002e;
+  --glow-bright: #ff3355;
+  --border-red: rgba(255, 0, 51, 0.35);
+  --border-red-glow: rgba(255, 0, 51, 0.8);
+  --tactical-green: #00ff66;
+  --parchment-bg: #d8c49f;
+  --parchment-text: #2c1a0c;
+  
+  --font-stranger: 'Cinzel Decorative', 'Cinzel', serif;
+  --font-digital: 'Share Tech Mono', 'VT323', monospace;
+  --font-sans: 'Inter', sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
+* {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  margin: 0;
+  background-color: var(--bg-dark);
+  color: #e5e5e5;
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+  min-height: 100vh;
+  position: relative;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0d0306;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--glow-crimson);
+  border-radius: 3px;
+  box-shadow: 0 0 8px var(--glow-red);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--glow-red);
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
+/* Typography Classes */
+.font-stranger {
+  font-family: var(--font-stranger);
 }
 
-code,
-.counter {
-  font-family: var(--mono);
+.font-digital {
+  font-family: var(--font-digital);
+}
+
+/* Stranger Things Neon Red Title Glow */
+.stranger-title {
+  font-family: var(--font-stranger);
+  color: #ff1a40;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  text-shadow: 
+    0 0 5px #ff0033,
+    0 0 12px #ff0033,
+    0 0 25px #e6002e,
+    0 0 45px #b30024,
+    0 0 70px #80001a;
+  -webkit-text-stroke: 1.5px #ff4d6d;
+}
+
+.upsidedown-corrupted .stranger-title {
+  color: #ff0033;
+  text-shadow: 
+    0 0 8px #ff0033,
+    0 0 20px #ff0033,
+    0 0 40px #ff0000,
+    0 0 80px #990000;
+  animation: subtleGlitch 3s infinite alternate;
+}
+
+/* Panel Glassmorphism */
+.nexus-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-red);
+  box-shadow: 
+    0 0 15px rgba(255, 0, 51, 0.15),
+    inset 0 0 20px rgba(255, 0, 51, 0.05);
+  backdrop-filter: blur(8px);
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.nexus-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--glow-red), transparent);
+}
+
+.nexus-panel-glow {
+  border-color: var(--border-red-glow);
+  box-shadow: 
+    0 0 25px rgba(255, 0, 51, 0.35),
+    inset 0 0 30px rgba(255, 0, 51, 0.1);
+}
+
+/* CRT Screen Scanlines */
+.crt-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 9999;
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%, 
+    rgba(0, 0, 0, 0.25) 50%
+  ), linear-gradient(
+    90deg,
+    rgba(255, 0, 0, 0.03),
+    rgba(0, 255, 0, 0.01),
+    rgba(0, 0, 255, 0.03)
+  );
+  background-size: 100% 3px, 6px 100%;
+  opacity: 0.75;
+}
+
+/* Glowing Neon Input Field */
+.nexus-input {
+  background: rgba(12, 2, 5, 0.85);
+  border: 1px solid var(--border-red);
+  color: #ff3355;
+  font-family: var(--font-digital);
+  letter-spacing: 0.1em;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.nexus-input:focus {
+  border-color: var(--glow-red);
+  box-shadow: 0 0 15px rgba(255, 0, 51, 0.5);
+  color: #ffffff;
+}
+
+.nexus-input::placeholder {
+  color: rgba(255, 51, 85, 0.4);
+}
+
+/* Buttons */
+.nexus-btn {
+  background: linear-gradient(180deg, #cc0029 0%, #80001a 100%);
+  border: 1px solid var(--glow-red);
+  color: #ffffff;
+  font-family: var(--font-digital);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 0 12px rgba(255, 0, 51, 0.4);
+  transition: all 0.25s ease;
   display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+.nexus-btn:hover {
+  background: linear-gradient(180deg, #ff0033 0%, #b30024 100%);
+  box-shadow: 0 0 25px rgba(255, 0, 51, 0.8), 0 0 40px rgba(255, 0, 51, 0.4);
+  transform: translateY(-1px);
+}
+
+.nexus-btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 0 8px rgba(255, 0, 51, 0.5);
+}
+
+/* Secondary Button */
+.nexus-btn-secondary {
+  background: rgba(30, 6, 12, 0.8);
+  border: 1px solid var(--border-red);
+  color: #ff4d6d;
+}
+
+.nexus-btn-secondary:hover {
+  background: rgba(60, 10, 22, 0.9);
+  border-color: var(--glow-red);
+  color: #ffffff;
+}
+
+/* D&D Map Parchment Card */
+.dnd-parchment {
+  background-color: var(--parchment-bg);
+  color: var(--parchment-text);
+  border: 4px solid #4a2c11;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.8), inset 0 0 50px rgba(90, 50, 20, 0.4);
+  position: relative;
+}
+
+/* Audio Wave Equalizer Animation */
+@keyframes barPulse {
+  0%, 100% { height: 20%; }
+  50% { height: 95%; }
+}
+
+.eq-bar {
+  animation: barPulse 1.2s infinite ease-in-out alternate;
+}
+
+.eq-bar:nth-child(1) { animation-delay: 0.1s; }
+.eq-bar:nth-child(2) { animation-delay: 0.3s; }
+.eq-bar:nth-child(3) { animation-delay: 0.2s; }
+.eq-bar:nth-child(4) { animation-delay: 0.4s; }
+.eq-bar:nth-child(5) { animation-delay: 0.15s; }
+
+/* Subtle Glitch Animation */
+@keyframes subtleGlitch {
+  0% { transform: translate(0, 0); }
+  92% { transform: translate(0, 0); }
+  94% { transform: translate(-2px, 1px); }
+  96% { transform: translate(2px, -1px); }
+  98% { transform: translate(-1px, -1px); }
+  100% { transform: translate(0, 0); }
+}
+
+/* Red Pulsing Beacon */
+@keyframes redPulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 0, 51, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(255, 0, 51, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 0, 51, 0); }
+}
+
+.pulse-beacon {
+  animation: redPulse 2s infinite;
 }

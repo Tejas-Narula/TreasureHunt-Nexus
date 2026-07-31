@@ -68,17 +68,16 @@ def scan_qr(request: ScanRequest):
     if not member_doc.exists:
         raise HTTPException(status_code=404, detail="Player not found")
         
-    member_data = member_doc.to_dict()
-    character_role = member_data.get("character_role")
+    team_data = team_doc.to_dict()
+    current_step = team_data.get("current_step", 0)
+    assigned_trail = team_data.get("assigned_trail")
     
-    if not character_role:
-        raise HTTPException(status_code=400, detail="Player has no character role assigned")
+    if not assigned_trail:
+        raise HTTPException(status_code=400, detail="Team has no assigned trail")
         
-    current_step = member_data.get("current_step", 0)
-    
-    trail_doc = db.collection("trails").document(character_role).get()
+    trail_doc = db.collection("trails").document(assigned_trail).get()
     if not trail_doc.exists:
-        raise HTTPException(status_code=404, detail="Trail not found")
+        raise HTTPException(status_code=404, detail="Assigned trail not found")
         
     trail_data = trail_doc.to_dict()
     steps = trail_data.get("steps", [])
@@ -90,7 +89,7 @@ def scan_qr(request: ScanRequest):
             break
             
     if not step_config:
-        if current_step >= len(steps):
+        if current_step > 0 and current_step >= len(steps):
             return ScanResponse(success=False, message="Game completed", completed=True)
         raise HTTPException(status_code=400, detail="Invalid current step")
         
@@ -101,14 +100,14 @@ def scan_qr(request: ScanRequest):
         raise HTTPException(status_code=400, detail="Invalid QR token")
         
     new_step = current_step + 1
-    history = member_data.get("history", [])
+    history = team_data.get("history", [])
     history.append({
         "step_number": current_step,
         "scanned_at": datetime.utcnow().isoformat(),
         "status": "completed"
     })
     
-    member_ref.update({
+    db.collection("teams").document(team_doc.id).update({
         "current_step": new_step,
         "history": history
     })

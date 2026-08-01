@@ -23,19 +23,31 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
     setIsLoading(true);
 
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
+      const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') || 'http://127.0.0.1:8000';
       const response = await fetch(`${baseUrl}/api/player/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ team_id: targetTeamId.trim(), phone_number: phone.trim() }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Login failed');
+      const text = await response.text();
+      let errorData: any = null;
+      try {
+        errorData = text ? JSON.parse(text) : null;
+      } catch (e) {
+        // ignore invalid JSON error body
       }
 
-      const data = await response.json();
+      if (!response.ok) {
+        const detail = errorData?.detail || response.statusText || 'Login failed';
+        throw new Error(detail);
+      }
+
+      if (!text) {
+        throw new Error('Empty login response from server');
+      }
+
+      const data = JSON.parse(text);
       
       soundFx.playAccessGranted();
       const userObj: OperativeUser = {

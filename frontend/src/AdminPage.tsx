@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Search, Play, Pause, RefreshCw, Square, Plus, CheckCircle, Trash2, ShieldAlert, Edit2, MapPin, Map, Users } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Search, Play, Pause, RefreshCw, Square, Plus, Trash2, Edit2, MapPin, Map, Users } from 'lucide-react';
 import './AdminPage.css';
 
 interface StepConfig {
@@ -41,39 +41,63 @@ interface Trail {
   steps: StepConfig[];
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL
-  ? `${import.meta.env.VITE_API_BASE_URL}/api/admin`
-  : '/api/admin';
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') || 'http://127.0.0.1:8000';
+const API_BASE = `${apiBaseUrl}/api/admin`;
 
 async function fetchJson(url: string, options: RequestInit) {
-  const res = await fetch(url, options);
-  const contentType = res.headers.get('content-type') || '';
-  if (!contentType.includes('application/json')) {
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      const fallbackUrl = `http://127.0.0.1:8000${url}`;
-      const fallbackRes = await fetch(fallbackUrl, options);
-      const fallbackContentType = fallbackRes.headers.get('content-type') || '';
-      if (fallbackContentType.includes('application/json')) {
-        if (!fallbackRes.ok) {
-          const errBody = await fallbackRes.json().catch(() => ({ detail: fallbackRes.statusText }));
-          throw new Error(errBody.detail || `Server returned ${fallbackRes.status}`);
-        }
-        return fallbackRes.json();
-      }
+  const executeFetch = async (targetUrl: string) => {
+    const res = await fetch(targetUrl, options);
+    const text = await res.text();
+    let jsonBody: any = null;
+    try {
+      jsonBody = text ? JSON.parse(text) : null;
+    } catch (e) {
+      jsonBody = null;
     }
-    throw new Error('Backend API not responding with JSON.');
+    return { res, text, jsonBody };
+  };
+
+  const targetUrl = url.startsWith('http://') || url.startsWith('https://')
+    ? url
+    : `${import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') || 'http://127.0.0.1:8000'}${url}`;
+
+  let fetchResult;
+  try {
+    fetchResult = await executeFetch(targetUrl);
+  } catch (err: any) {
+    throw new Error(`Failed to reach backend at ${targetUrl}: ${err.message}`);
   }
 
-  if (!res.ok) {
-    const errBody = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(errBody.detail || `Server returned ${res.status}`);
+  if (!fetchResult.res.ok && !url.startsWith('http://') && !url.startsWith('https://')) {
+    const fallbackUrl = `http://127.0.0.1:8000${url}`;
+    if (fallbackUrl !== targetUrl) {
+      try {
+        fetchResult = await executeFetch(fallbackUrl);
+      } catch (err) {
+        // keep original fetchResult if fallback fails
+      }
+    }
   }
-  return res.json();
+
+  if (!fetchResult.res.ok) {
+    const errBody = fetchResult.jsonBody || { detail: fetchResult.res.statusText };
+    throw new Error(errBody.detail || `Server returned ${fetchResult.res.status}`);
+  }
+
+  if (fetchResult.jsonBody !== null) {
+    return fetchResult.jsonBody;
+  }
+
+  if (fetchResult.text.trim().length === 0) {
+    throw new Error('Backend API returned empty response.');
+  }
+
+  throw new Error('Backend API not responding with JSON.');
 }
 
 export const AdminPage: React.FC = () => {
   const [adminEmail, setAdminEmail] = useState<string>(() => sessionStorage.getItem('admin_email') || 'admin@nexus.com');
-  const [adminPassword, setAdminPassword] = useState<string>(() => sessionStorage.getItem('admin_password'));
+  const [adminPassword, setAdminPassword] = useState<string>(() => sessionStorage.getItem('admin_password') ?? '');
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => !!sessionStorage.getItem('admin_secret_verified'));
 
   const [gameState, setGameState] = useState<string>('unknown');
@@ -83,7 +107,7 @@ export const AdminPage: React.FC = () => {
   const [locations, setLocations] = useState<Location[]>([]);
   const [trails, setTrails] = useState<Trail[]>([]);
 
-  const [loading, setLoading] = useState<boolean>(false);
+  const [, setLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [successMsg, setSuccessMsg] = useState<string>('');
 
@@ -91,7 +115,6 @@ export const AdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'teams' | 'locations' | 'trails'>('teams');
 
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
-  const [selectedLocId, setSelectedLocId] = useState<string | null>(null);
   const [selectedTrailName, setSelectedTrailName] = useState<string | null>(null);
 
   // New Team Modal State
@@ -99,9 +122,7 @@ export const AdminPage: React.FC = () => {
   const [newTeamName, setNewTeamName] = useState<string>('');
   const [newTeamId, setNewTeamId] = useState<string>('');
   const [newPhone, setNewPhone] = useState<string>('');
-  const [newPlayerName, setNewPlayerName] = useState<string>('Captain');
-
-  const ws = useRef<WebSocket | null>(null);
+  const [newPlayerName] = useState<string>('Captain');
 
   const getHeaders = () => ({
     'Content-Type': 'application/json',
@@ -301,8 +322,6 @@ export const AdminPage: React.FC = () => {
   }, [trails, searchQuery]);
 
   const selectedTeam = useMemo(() => teams.find(t => t.id === selectedTeamId), [teams, selectedTeamId]);
-  const selectedLocation = useMemo(() => locations.find(l => l.id === selectedLocId), [locations, selectedLocId]);
-  const selectedTrail = useMemo(() => trails.find(t => t.name === selectedTrailName), [trails, selectedTrailName]);
 
   // Locations Logic
   const [locFormName, setLocFormName] = useState('');

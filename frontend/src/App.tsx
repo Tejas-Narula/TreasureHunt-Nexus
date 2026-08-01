@@ -8,7 +8,7 @@ import { MissionPage } from './pages/mission/MissionPage';
 import './index.css';
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<'login' | 'waiting' | 'paused' | 'ended' | 'mission'>('login');
+  const [activeTab, setActiveTab] = useState<'login' | 'waiting' | 'paused' | 'ended' | 'mission' | 'home'>('login');
   const [themeMode, setThemeMode] = useState<ThemeMode>('hawkins');
   const [currentUser, setCurrentUser] = useState<OperativeUser | null>(null);
   const [isMuted, setIsMuted] = useState(false);
@@ -70,7 +70,7 @@ export function App() {
       {activeTab === 'home' && (
         <Navbar
           activeTab={activeTab}
-          setActiveTab={setActiveTab}
+          setActiveTab={(tab) => setActiveTab(tab)}
           themeMode={themeMode}
           setThemeMode={setThemeMode}
           currentUser={currentUser}

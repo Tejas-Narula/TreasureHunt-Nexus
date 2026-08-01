@@ -12,7 +12,7 @@ interface MissionPageProps {
   currentUser: OperativeUser;
 }
 
-export function MissionPage({ onBack, currentUser }: MissionPageProps) {
+export function MissionPage({ currentUser }: MissionPageProps) {
   const [showScanModal, setShowScanModal] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [scanComplete, setScanComplete] = useState(false);
@@ -24,7 +24,7 @@ export function MissionPage({ onBack, currentUser }: MissionPageProps) {
 
   const fetchTeamData = async () => {
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
+      const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') || 'http://127.0.0.1:8000';
       const res = await fetch(`${baseUrl}/api/player/team/${currentUser.teamId}`);
       if (res.ok) {
         const data = await res.json();
@@ -38,28 +38,13 @@ export function MissionPage({ onBack, currentUser }: MissionPageProps) {
     }
   };
 
-  useEffect(() => {
-    fetchTeamData();
-    // In a real app, you might poll this or listen to websockets for step updates.
-  }, [currentUser.teamId]);
-
-  const handleOpenMap = () => {
-    soundFx.playClick();
-    setShowMapModal(true);
-  };
-
-  const handleOpenScan = () => {
-    soundFx.playClick();
-    setShowScanModal(true);
-  };
-
   const handleScan = async (qrText: string) => {
     if (isScanning || scanComplete) return;
     setIsScanning(true);
     soundFx.playClick();
 
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
+      const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') || 'http://127.0.0.1:8000';
       const res = await fetch(`${baseUrl}/api/player/scan`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -87,6 +72,21 @@ export function MissionPage({ onBack, currentUser }: MissionPageProps) {
     } finally {
       setIsScanning(false);
     }
+  };
+
+  useEffect(() => {
+    fetchTeamData();
+    // In a real app, you might poll this or listen to websockets for step updates.
+  }, [currentUser.teamId]);
+
+  const handleOpenMap = () => {
+    soundFx.playClick();
+    setShowMapModal(true);
+  };
+
+  const handleOpenScan = () => {
+    soundFx.playClick();
+    setShowScanModal(true);
   };
 
   const closeModal = () => {

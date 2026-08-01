@@ -21,8 +21,6 @@ import {
 /**
  * MISSION PAGE — Radio Transmission / Clue Screen
  * ---------------------------------------------------------------
- * Ownership: everything under src/pages/mission/ only.
- * Nothing in src/components/, backend, or shared config is touched.
  *
  * Flow this models:
  *  1. Team arrives at a location, sees the clue (unfrozen state).
@@ -146,7 +144,7 @@ export function MissionPage() {
       {/* Scan Simulation Modal — mirrors the pattern already used in HomePage.tsx */}
       {showScanModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm">
-          <div className="nexus-panel p-5 max-w-sm w-full border-[#ff0033] shadow-[0_0_40px_rgba(255,0,51,0.6)] text-center space-y-3">
+          <div className="nexus-panel p-5 lg:p-6 max-w-sm lg:max-w-md w-full border-[#ff0033] shadow-[0_0_40px_rgba(255,0,51,0.6)] text-center space-y-3">
             <div className="flex items-center justify-between border-b border-[#ff0033]/30 pb-2">
               <span className="font-digital text-xs sm:text-sm text-[#ff4d6d] font-bold">
                 {scanComplete ? 'TRANSMISSION UNLOCKED' : 'SCAN NEXT QR CODE'}

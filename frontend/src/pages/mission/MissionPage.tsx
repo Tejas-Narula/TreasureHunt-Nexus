@@ -31,7 +31,12 @@ import {
  *     for now (matches the same pattern HomePage.tsx already uses).
  * ---------------------------------------------------------------
  */
-export function MissionPage() {
+interface MissionPageProps {
+  /** Called when the back button is tapped. Left undefined = no back button shown. */
+  onBack?: () => void;
+}
+
+export function MissionPage({ onBack }: MissionPageProps) {
   const [isFrozen, setIsFrozen] = useState(true);
   const [showScanModal, setShowScanModal] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -70,7 +75,7 @@ export function MissionPage() {
           padding, so this page actually expands to fill laptop/desktop
           screens instead of sitting in a small centered card. */}
       <div className="max-w-7xl mx-auto p-3 sm:p-5 lg:p-6 space-y-4 sm:space-y-5 lg:space-y-6">
-        <Header signalStrength={DUMMY_SIGNAL_STRENGTH} signalPaused={isFrozen} />
+        <Header signalStrength={DUMMY_SIGNAL_STRENGTH} signalPaused={isFrozen} onBack={onBack} />
 
         <div className="text-center font-digital text-[#ff3355] font-bold text-[11px] sm:text-xs tracking-[0.25em]">
           TRANSMISSION RECEIVED

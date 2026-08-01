@@ -59,7 +59,7 @@ export function App() {
     onNavigateMission={() => setActiveTab('mission')}
   />
 ) : (
-  <MissionPage />
+  <MissionPage onBack={() => setActiveTab('home')} />
 )}
       </main>
 

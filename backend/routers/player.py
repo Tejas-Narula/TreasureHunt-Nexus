@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status
 from core.firebase import get_db
-from schemas.models import LoginRequest, LoginResponse, GameState, ScanRequest, ScanResponse, Team, Member
+from schemas.models import LoginRequest, LoginResponse, GameState, ScanRequest, ScanResponse, Team, Member, TeamInfoResponse, Trail
 from datetime import datetime
 
 router = APIRouter(prefix="/api/player", tags=["Player"])
@@ -45,6 +45,44 @@ def get_game_state():
     if not state_doc.exists:
         return GameState(status="waiting")
     return GameState(**state_doc.to_dict())
+
+@router.get("/team/{team_id}", response_model=TeamInfoResponse)
+def get_team_info(team_id: str):
+    db = get_db()
+    
+    # fetch team
+    teams_ref = db.collection("teams").where("team_id", "==", team_id).stream()
+    team_doc = None
+    for doc in teams_ref:
+        team_doc = doc
+        break
+        
+    if not team_doc:
+        raise HTTPException(status_code=404, detail="Team not found")
+        
+    team_data = team_doc.to_dict()
+    team_data["id"] = team_doc.id
+    
+    # fetch members
+    members = []
+    members_ref = db.collection("teams").document(team_doc.id).collection("members").stream()
+    for doc in members_ref:
+        member_data = doc.to_dict()
+        member_data["id"] = doc.id
+        members.append(member_data)
+        
+    team_data["members"] = members
+    team = Team(**team_data)
+    
+    trail = None
+    if team.assigned_trail:
+        trail_doc = db.collection("trails").document(team.assigned_trail).get()
+        if trail_doc.exists:
+            trail_data = trail_doc.to_dict()
+            trail_data["name"] = trail_doc.id
+            trail = Trail(**trail_data)
+            
+    return TeamInfoResponse(team=team, trail=trail)
 
 @router.post("/scan", response_model=ScanResponse)
 def scan_qr(request: ScanRequest):

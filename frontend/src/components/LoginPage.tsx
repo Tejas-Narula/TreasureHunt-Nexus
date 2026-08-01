@@ -10,47 +10,61 @@ interface LoginPageProps {
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigateHome }) => {
   const [teamName, setTeamName] = useState('');
-  const [password, setPassword] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
 
-  const executeLogin = (targetTeamName: string) => {
+  const executeLogin = async (targetTeamId: string, phone: string) => {
     soundFx.playClick();
     setErrorMsg('');
     setSuccessMsg('');
     setIsLoading(true);
 
-    setTimeout(() => {
-      if (!targetTeamName.trim()) {
-        soundFx.playAccessDenied();
-        setErrorMsg('CLEARANCE DENIED: TEAM NAME REQUIRED');
-        setIsLoading(false);
-        return;
+    try {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
+      const response = await fetch(`${baseUrl}/api/player/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ team_id: targetTeamId.trim(), phone_number: phone.trim() }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Login failed');
       }
 
-      // Successful login
+      const data = await response.json();
+      
       soundFx.playAccessGranted();
       const userObj: OperativeUser = {
-        agentId: 'NX7Q',
-        codename: targetTeamName.trim().toUpperCase(),
-        clearance: 'OPERATIVE TEAM',
+        agentId: data.member.id.substring(0, 8),
+        codename: data.member.player_name.toUpperCase(),
+        clearance: data.member.character_role?.toUpperCase() || 'OPERATIVE',
+        teamId: data.team.team_id,
+        teamDocId: data.team.id,
+        playerId: data.member.id,
+        phoneNumber: data.member.phone_number,
       };
 
-      setSuccessMsg(`CLEARANCE GRANTED FOR ${targetTeamName.trim().toUpperCase()}! ENTERING HAWKINS...`);
+      setSuccessMsg(`CLEARANCE GRANTED FOR ${data.team.team_name.toUpperCase()}! ENTERING HAWKINS...`);
 
       setTimeout(() => {
         setIsLoading(false);
         onLoginSuccess(userObj);
         onNavigateHome();
       }, 900);
-    }, 400);
+    } catch (err: any) {
+      soundFx.playAccessDenied();
+      setErrorMsg(`CLEARANCE DENIED: ${err.message.toUpperCase()}`);
+      setIsLoading(false);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    executeLogin(teamName || 'TEAM NEXUS');
+    executeLogin(teamName, phoneNumber);
   };
 
   return (
@@ -95,20 +109,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
               value={teamName}
               onChange={(e) => setTeamName(e.target.value)}
               className="w-full pl-10 sm:pl-12 pr-4 py-3 bg-[#0d0206]/95 border border-[#ff0033]/60 focus:border-[#ff0033] rounded-lg text-white font-digital tracking-widest text-[16px] placeholder-zinc-500 outline-none transition-all shadow-[inset_0_0_10px_rgba(255,0,51,0.1)] focus:shadow-[0_0_15px_rgba(255,0,51,0.6)]"
-              placeholder="TEAM NAME"
+              placeholder="TEAM ID (e.g. T1)"
               autoFocus
             />
           </div>
 
-          {/* Password Input (16px font prevents iOS auto-zoom) */}
+          {/* Phone Number Input (16px font prevents iOS auto-zoom) */}
           <div className="relative">
             <Lock className="absolute left-3.5 sm:left-4 top-3.5 w-4 h-4 sm:w-5 sm:h-5 text-[#ff0033]" />
             <input
               type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
               className="w-full pl-10 sm:pl-12 pr-11 sm:pr-12 py-3 bg-[#0d0206]/95 border border-[#ff0033]/60 focus:border-[#ff0033] rounded-lg text-white font-digital tracking-widest text-[16px] placeholder-zinc-500 outline-none transition-all shadow-[inset_0_0_10px_rgba(255,0,51,0.1)] focus:shadow-[0_0_15px_rgba(255,0,51,0.6)]"
-              placeholder="PASSWORD"
+              placeholder="PHONE NUMBER"
             />
             <button
               type="button"

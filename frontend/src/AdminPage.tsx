@@ -77,6 +77,8 @@ export const AdminPage: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => !!sessionStorage.getItem('admin_secret_verified'));
 
   const [gameState, setGameState] = useState<string>('unknown');
+  const [gameStartTime, setGameStartTime] = useState<string | null>(null);
+  const [elapsedTime, setElapsedTime] = useState<string>('00:00:00');
   const [teams, setTeams] = useState<Team[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [trails, setTrails] = useState<Trail[]>([]);
@@ -113,6 +115,7 @@ export const AdminPage: React.FC = () => {
     try {
       const stateRes = await fetchJson(`${API_BASE}/game/state`, { headers: getHeaders() });
       setGameState(stateRes.status);
+      setGameStartTime(stateRes.start_time || null);
       const teamsRes = await fetchJson(`${API_BASE}/teams`, { headers: getHeaders() });
       setTeams(teamsRes);
       const locRes = await fetchJson(`${API_BASE}/locations`, { headers: getHeaders() });
@@ -130,7 +133,7 @@ export const AdminPage: React.FC = () => {
     }
   };
 
-  const handleGameAction = async (action: 'start' | 'pause' | 'stop') => {
+  const handleGameAction = async (action: 'start' | 'pause' | 'stop' | 'reset') => {
     if (!window.confirm(`Are you sure you want to ${action.toUpperCase()} the game?`)) return;
     try {
       await fetchJson(`${API_BASE}/game/${action}`, { method: 'PUT', headers: getHeaders() });
@@ -161,6 +164,25 @@ export const AdminPage: React.FC = () => {
       fetchDashboardData();
     }
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    let interval: number;
+    if ((gameState === 'active' || gameState === 'paused') && gameStartTime) {
+      interval = window.setInterval(() => {
+        const start = new Date(gameStartTime).getTime();
+        const now = Date.now();
+        const diff = Math.max(0, Math.floor((now - start) / 1000));
+        
+        const hours = Math.floor(diff / 3600).toString().padStart(2, '0');
+        const mins = Math.floor((diff % 3600) / 60).toString().padStart(2, '0');
+        const secs = (diff % 60).toString().padStart(2, '0');
+        setElapsedTime(`${hours}:${mins}:${secs}`);
+      }, 1000);
+    } else {
+      setElapsedTime('00:00:00');
+    }
+    return () => window.clearInterval(interval);
+  }, [gameState, gameStartTime]);
 
 
   const handleDeleteTeam = async (team_doc_id: string) => {
@@ -363,25 +385,48 @@ export const AdminPage: React.FC = () => {
         <div className="flex items-center gap-4">
           <h1 className="font-semibold text-lg">Nexus Admin</h1>
           {/* Game Controls */}
-          <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-md border border-gray-200 shrink-0 hidden md:flex">
-            <div className="px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide mr-1">
-              <span>Status: </span>
-              <span className="text-black">{gameState.substring(0,3)}</span>
+          <div className="flex items-center gap-2 shrink-0 hidden md:flex">
+            <div className="px-2 py-1 bg-gray-100 rounded-md border border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wide mr-1 flex items-center">
+              <span className="mr-1">Status: </span>
+              <span className="text-black font-bold mr-2">{gameState}</span>
+              {(gameState === 'active' || gameState === 'paused') && gameStartTime && (
+                <span className="text-blue-600 border-l border-gray-300 pl-2">⏱ {elapsedTime}</span>
+              )}
             </div>
-            <div className="flex items-center">
-              <button onClick={() => handleGameAction('start')} className="p-1 hover:bg-white rounded text-gray-600 hover:text-green-600 transition" title="Start">
-                <Play className="w-4 h-4" />
-              </button>
-              <button onClick={() => handleGameAction('pause')} className="p-1 hover:bg-white rounded text-gray-600 hover:text-yellow-600 transition" title="Pause">
-                <Pause className="w-4 h-4" />
-              </button>
-              <button onClick={() => fetchDashboardData()} className="p-1 hover:bg-white rounded text-gray-600 hover:text-blue-600 transition" title="Refresh">
-                <RefreshCw className="w-4 h-4" />
-              </button>
-              <div className="w-px h-4 bg-gray-300 mx-1"></div>
-              <button onClick={() => handleGameAction('stop')} className="p-1 hover:bg-white rounded text-gray-600 hover:text-red-600 transition" title="Stop">
-                <Square className="w-4 h-4" />
-              </button>
+            <div className="flex items-center gap-2">
+              {(!gameState || gameState === 'waiting' || gameState === 'unknown') && (
+                <button onClick={() => handleGameAction('start')} className="px-4 py-1.5 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition shadow-sm flex items-center gap-1">
+                  <Play className="w-4 h-4" /> Start
+                </button>
+              )}
+              
+              {gameState === 'active' && (
+                <button onClick={() => handleGameAction('pause')} className="px-4 py-1.5 bg-amber-500 text-white rounded-md text-sm font-medium hover:bg-amber-600 transition shadow-sm flex items-center gap-1">
+                  <Pause className="w-4 h-4" /> Pause
+                </button>
+              )}
+              
+              {gameState === 'paused' && (
+                <>
+                  <button onClick={() => handleGameAction('start')} className="px-4 py-1.5 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition shadow-sm flex items-center gap-1">
+                    <Play className="w-4 h-4" /> Start
+                  </button>
+                  <button onClick={() => handleGameAction('stop')} className="px-4 py-1.5 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition shadow-sm flex items-center gap-1">
+                    <Square className="w-4 h-4" /> End
+                  </button>
+                </>
+              )}
+
+              {gameState === 'ended' && (
+                <>
+                  <button onClick={() => handleGameAction('start')} className="px-4 py-1.5 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition shadow-sm flex items-center gap-1">
+                    <Play className="w-4 h-4" /> Start
+                  </button>
+                  <button onClick={() => handleGameAction('reset')} className="px-4 py-1.5 bg-slate-500 text-white rounded-md text-sm font-medium hover:bg-slate-600 transition shadow-sm flex items-center gap-1">
+                    <RefreshCw className="w-4 h-4" /> Reset
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

@@ -6,6 +6,7 @@ from schemas.models import TeamCreate, TeamWithMemberCreate, MemberCreate, Membe
 from typing import Union
 from datetime import datetime
 import uuid
+import random
 
 async def broadcast_ws(message: dict):
     await manager.broadcast(message)
@@ -47,6 +48,30 @@ def stop_game(background_tasks: BackgroundTasks):
     }, merge=True)
     background_tasks.add_task(broadcast_ws, {"type": "game_state", "status": "ended"})
     return {"status": "Game stopped"}
+
+@router.put("/game/reset")
+def reset_game(background_tasks: BackgroundTasks):
+    db = get_db()
+    db.collection("game_config").document("global_state").set({
+        "status": "waiting"
+    }, merge=True)
+    
+    # Fetch all trails to randomly assign
+    trails_ref = db.collection("trails").stream()
+    trail_ids = [trail.id for trail in trails_ref]
+    
+    # Reset all participants positions and assign random trails
+    teams_ref = db.collection("teams").stream()
+    for team in teams_ref:
+        assigned_trail = random.choice(trail_ids) if trail_ids else None
+        team.reference.update({
+            "current_step": 0,
+            "history": [],
+            "assigned_trail": assigned_trail
+        })
+
+    background_tasks.add_task(broadcast_ws, {"type": "game_state", "status": "waiting"})
+    return {"status": "Game reset to waiting"}
 
 @router.get("/teams")
 def list_teams():

@@ -92,3 +92,7 @@ class ScanResponse(BaseModel):
 
 class OverrideStepRequest(BaseModel):
     new_step: int
+
+class TeamInfoResponse(BaseModel):
+    team: Team
+    trail: Optional[Trail] = None

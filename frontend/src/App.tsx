@@ -3,18 +3,14 @@ import type { ThemeMode, OperativeUser } from './types';
 import { Navbar } from './components/Navbar';
 import { BackgroundEffects } from './components/BackgroundEffects';
 import { LoginPage } from './components/LoginPage';
-import { HomePage } from './components/HomePage';
+import { GameStatusPage } from './components/GameStatusPage';
 import { MissionPage } from './pages/mission/MissionPage';
 import './index.css';
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<'login' | 'home' | 'mission'>('login');
+  const [activeTab, setActiveTab] = useState<'login' | 'waiting' | 'paused' | 'ended' | 'mission'>('login');
   const [themeMode, setThemeMode] = useState<ThemeMode>('hawkins');
-  const [currentUser, setCurrentUser] = useState<OperativeUser | null>({
-    agentId: 'NX7Q-DUSTIN',
-    codename: 'DUSTIN HENDERSON',
-    clearance: 'HELLFIRE LEADER (LEVEL 5)',
-  });
+  const [currentUser, setCurrentUser] = useState<OperativeUser | null>(null);
   const [isMuted, setIsMuted] = useState(false);
 
   // Apply upsidedown mode body class for corrupted filters
@@ -25,6 +21,45 @@ export function App() {
       document.documentElement.classList.remove('upsidedown-corrupted');
     }
   }, [themeMode]);
+
+  // Global WebSocket listener for game state
+  useEffect(() => {
+    if (!currentUser || activeTab === 'login') return;
+    
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = import.meta.env.VITE_API_BASE_URL 
+      ? import.meta.env.VITE_API_BASE_URL.replace(/^https?:\/\//, '') 
+      : window.location.host;
+      
+    const wsUrl = import.meta.env.VITE_API_BASE_URL 
+      ? `${protocol}//${host}/ws/game`
+      : `ws://localhost:8000/ws/game`;
+
+    const ws = new WebSocket(wsUrl);
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'game_state') {
+          if (data.status === 'active') {
+            setActiveTab('mission');
+          } else if (data.status === 'paused') {
+            setActiveTab('paused');
+          } else if (data.status === 'ended') {
+            setActiveTab('ended');
+          } else {
+            setActiveTab('waiting');
+          }
+        }
+      } catch (err) {
+        console.error('Error parsing websocket message:', err);
+      }
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, [currentUser, activeTab]);
 
   return (
     <div className={`min-h-screen relative flex flex-col ${themeMode === 'upsidedown' ? 'upsidedown-active' : ''}`}>
@@ -49,17 +84,41 @@ export function App() {
 <main className="relative z-10 flex-1 flex flex-col">
           {activeTab === 'login' ? (
   <LoginPage
-    onLoginSuccess={(user) => setCurrentUser(user)}
-    onNavigateHome={() => setActiveTab('home')}
+    onLoginSuccess={async (user) => {
+      setCurrentUser(user);
+      try {
+        const res = await fetch(import.meta.env.VITE_API_BASE_URL ? `${import.meta.env.VITE_API_BASE_URL}/api/player/state` : '/api/player/state');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === 'active') {
+            setActiveTab('mission');
+            return;
+          }
+        }
+        // Fallback to check localhost if API_BASE is missing or failing (dev env workaround)
+        if (!res.ok && !import.meta.env.VITE_API_BASE_URL) {
+           const fb = await fetch(`http://127.0.0.1:8000/api/player/state`);
+           if (fb.ok) {
+             const fbData = await fb.json();
+             if (fbData.status === 'active') {
+               setActiveTab('mission');
+             } else {
+               setActiveTab(fbData.status || 'waiting');
+             }
+             return;
+           }
+        }
+      } catch (err) {
+        console.error('Failed to check game state', err);
+      }
+      setActiveTab('waiting');
+    }}
+    onNavigateHome={() => {}}
   />
-) : activeTab === 'home' ? (
-  <HomePage
-    currentUser={currentUser}
-    onNavigateLogin={() => setActiveTab('login')}
-    onNavigateMission={() => setActiveTab('mission')}
-  />
+) : activeTab === 'waiting' || activeTab === 'paused' || activeTab === 'ended' ? (
+  <GameStatusPage status={activeTab as 'waiting' | 'paused' | 'ended'} />
 ) : (
-  <MissionPage onBack={() => setActiveTab('home')} />
+  <MissionPage onBack={() => setActiveTab('waiting')} currentUser={currentUser!} />
 )}
       </main>
 

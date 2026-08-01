@@ -5,6 +5,10 @@ export interface OperativeUser {
   codename: string;
   clearance: string;
   avatarUrl?: string;
+  teamId: string;
+  teamDocId: string;
+  playerId: string;
+  phoneNumber: string;
 }
 
 export interface MapSector {

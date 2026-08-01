@@ -40,3 +40,20 @@ export const DUMMY_CLUE: MissionClue = {
 
 export const DUMMY_DECODED_NOTE =
   'Transmission converted from frequency 14.235 MHz using NEXUS decoder.';
+
+export const DUMMY_TEAM_INFO = {
+  teamName: 'TEAM NEXUS',
+  trail: 'B',
+  missionCurrent: 2,
+  missionTotal: 5,
+  status: 'ACTIVE',
+  initialElapsedSeconds: 42 * 60 + 18, // 00:42:18
+};
+
+export const DUMMY_TRAIL_NODES = [
+  { id: 1, label: 'The Old Library' },
+  { id: 2, label: 'Hawkins High Gymnasium' },
+  { id: 3, label: "Melvald's General Store" },
+  { id: 4, label: 'Sattler Quarry' },
+  { id: 5, label: 'Hawkins National Laboratory' },
+];

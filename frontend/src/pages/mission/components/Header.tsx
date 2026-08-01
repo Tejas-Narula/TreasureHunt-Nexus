@@ -3,10 +3,12 @@ import { SignalBars } from './SignalBars';
 
 interface HeaderProps {
   signalStrength?: number;
+  /** Pauses the live signal flicker, e.g. while the mission screen is frozen. */
+  signalPaused?: boolean;
 }
 
 /** Top bar: radio tower icon + title/subtitle on the left, signal bars on the right. */
-export function Header({ signalStrength }: HeaderProps) {
+export function Header({ signalStrength, signalPaused }: HeaderProps) {
   return (
     <div className="flex items-start justify-between pb-3 sm:pb-3.5 lg:pb-4 border-b border-[#ff0033]/35">
       <div className="flex items-center gap-2 sm:gap-2.5 lg:gap-3">
@@ -20,7 +22,7 @@ export function Header({ signalStrength }: HeaderProps) {
           </span>
         </div>
       </div>
-      <SignalBars strength={signalStrength} />
+      <SignalBars strength={signalStrength} paused={signalPaused} />
     </div>
   );
 }

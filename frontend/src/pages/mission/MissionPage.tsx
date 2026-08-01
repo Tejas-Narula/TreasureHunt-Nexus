@@ -1,13 +1,22 @@
 import { useState } from 'react';
-import { QrCode as QrIcon, Cpu } from 'lucide-react';
+import { QrCode as QrIcon, Cpu, Map as MapIcon } from 'lucide-react';
 import { soundFx } from '../../utils/audio';
 import { Header } from './components/Header';
 import { TransmissionCard } from './components/TransmissionCard';
 import { DecodedMessage } from './components/DecodedMessage';
+import { TeamInfoCard } from './components/TeamInfoCard';
+import { ProgressCard } from './components/ProgressCard';
 import { ObjectiveCard } from './components/ObjectiveCard';
 import { WarningBanner } from './components/WarningBanner';
 import { FreezeOverlay } from './components/FreezeOverlay';
-import { DUMMY_CLUE, DUMMY_DECODED_NOTE, DUMMY_SIGNAL_STRENGTH } from './data/dummyMission';
+import { TrailMapModal } from './components/TrailMapModal';
+import {
+  DUMMY_CLUE,
+  DUMMY_DECODED_NOTE,
+  DUMMY_SIGNAL_STRENGTH,
+  DUMMY_TEAM_INFO,
+  DUMMY_TRAIL_NODES,
+} from './data/dummyMission';
 
 /**
  * MISSION PAGE — Radio Transmission / Clue Screen
@@ -29,6 +38,12 @@ export function MissionPage() {
   const [showScanModal, setShowScanModal] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [scanComplete, setScanComplete] = useState(false);
+  const [showMapModal, setShowMapModal] = useState(false);
+
+  const handleOpenMap = () => {
+    soundFx.playClick();
+    setShowMapModal(true);
+  };
 
   const handleOpenScan = () => {
     if (isFrozen) return;
@@ -52,20 +67,22 @@ export function MissionPage() {
   };
 
   return (
-    <div className="min-h-[100dvh] w-full bg-[#070204] flex justify-center items-start px-3 py-5 sm:px-4 sm:py-6 lg:py-10">
-      {/* Base layout: single stacked column on mobile & tablet portrait.
-          At lg (1024px+ — laptop, and landscape tablets) it becomes a
-          horizontal two-column layout: transmission on the left spanning
-          full height, everything else stacked on the right. */}
-      <div className="w-full max-w-[460px] sm:max-w-[520px] md:max-w-[640px] lg:max-w-[980px] xl:max-w-[1100px] flex flex-col gap-3.5 sm:gap-4 lg:gap-5">
-        <Header signalStrength={DUMMY_SIGNAL_STRENGTH} />
+    <div className="min-h-[100dvh] w-full bg-[#070204]">
+      {/* Same shell pattern as HomePage: max-w-7xl mx-auto + responsive
+          padding, so this page actually expands to fill laptop/desktop
+          screens instead of sitting in a small centered card. */}
+      <div className="max-w-7xl mx-auto p-3 sm:p-5 lg:p-6 space-y-4 sm:space-y-5 lg:space-y-6">
+        <Header signalStrength={DUMMY_SIGNAL_STRENGTH} signalPaused={isFrozen} />
 
         <div className="text-center font-digital text-[#ff3355] font-bold text-[11px] sm:text-xs tracking-[0.25em]">
           TRANSMISSION RECEIVED
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-3.5 sm:gap-4 lg:gap-5 lg:items-stretch">
-          <div className="lg:flex-[1.05] lg:flex">
+        {/* Row 1: transmission (wide) + decoded message (narrow) — mirrors
+            HomePage's hero (col-span-8) / clue media (col-span-4) split.
+            Grid rows stretch both columns to equal height automatically. */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 lg:gap-6">
+          <div className="lg:col-span-8">
             <TransmissionCard
               senderName={DUMMY_CLUE.sender}
               channel={DUMMY_CLUE.frequency}
@@ -74,23 +91,41 @@ export function MissionPage() {
                 i < arr.length - 1 ? s + '.' : s
               )}
               clueText={DUMMY_CLUE.decodedMessage}
+              onViewOnMap={handleOpenMap}
             />
           </div>
-
-          <div className="lg:flex-[0.95] flex flex-col gap-3.5 sm:gap-4 lg:gap-5">
+          <div className="lg:col-span-4 flex flex-col gap-4 sm:gap-5 lg:gap-6">
             <DecodedMessage note={DUMMY_DECODED_NOTE} />
+            <TeamInfoCard
+              teamName={DUMMY_TEAM_INFO.teamName}
+              trail={DUMMY_TEAM_INFO.trail}
+              missionCurrent={DUMMY_TEAM_INFO.missionCurrent}
+              missionTotal={DUMMY_TEAM_INFO.missionTotal}
+              status={isFrozen ? 'VERIFYING' : DUMMY_TEAM_INFO.status}
+              initialElapsedSeconds={DUMMY_TEAM_INFO.initialElapsedSeconds}
+            />
+            <ProgressCard
+              current={DUMMY_TEAM_INFO.missionCurrent}
+              total={DUMMY_TEAM_INFO.missionTotal}
+            />
+          </div>
+        </div>
 
-            <div className="relative">
-              <ObjectiveCard
-                title={DUMMY_CLUE.objectiveTitle}
-                description={DUMMY_CLUE.objectiveDesc}
-                qrValue={DUMMY_CLUE.qrValue}
-                onScanClick={handleOpenScan}
-                isFrozen={isFrozen}
-              />
-              <FreezeOverlay isFrozen={isFrozen} />
-            </div>
+        {/* Row 2: objective/QR (wide) + warning & dev controls (narrow) —
+            mirrors HomePage's map (col-span-8) / stats (col-span-4) split. */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 lg:gap-6">
+          <div className="lg:col-span-8 relative">
+            <ObjectiveCard
+              title={DUMMY_CLUE.objectiveTitle}
+              description={DUMMY_CLUE.objectiveDesc}
+              qrValue={DUMMY_CLUE.qrValue}
+              onScanClick={handleOpenScan}
+              isFrozen={isFrozen}
+            />
+            <FreezeOverlay isFrozen={isFrozen} />
+          </div>
 
+          <div className="lg:col-span-4 flex flex-col gap-4 sm:gap-5 lg:gap-6">
             <WarningBanner />
 
             {/* --- DEV CONTROLS (remove once real coordinator/backend unlock exists) --- */}
@@ -161,6 +196,24 @@ export function MissionPage() {
           </div>
         </div>
       )}
+      {/* Trail Map Modal */}
+      <TrailMapModal
+        isOpen={showMapModal}
+        onClose={() => setShowMapModal(false)}
+        nodes={DUMMY_TRAIL_NODES}
+        currentIndex={DUMMY_TEAM_INFO.missionCurrent}
+        trail={DUMMY_TEAM_INFO.trail}
+      />
+
+      {/* Floating map button — always reachable regardless of scroll position */}
+      <button
+        type="button"
+        onClick={handleOpenMap}
+        aria-label="Open trail map"
+        className="fixed z-40 bottom-[max(16px,env(safe-area-inset-bottom))] right-[max(16px,env(safe-area-inset-right))] w-12 h-12 sm:w-14 sm:h-14 rounded-full nexus-btn shadow-[0_0_20px_rgba(255,0,51,0.6)] flex items-center justify-center cursor-pointer"
+      >
+        <MapIcon className="w-11 h-11 sm:w-12 sm:h-12" strokeWidth={2.25} />
+      </button>
     </div>
   );
 }

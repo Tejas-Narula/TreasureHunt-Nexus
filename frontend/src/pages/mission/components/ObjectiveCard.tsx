@@ -11,7 +11,7 @@ interface ObjectiveCardProps {
 /** "YOUR OBJECTIVE" panel with the real QR code button on the right. */
 export function ObjectiveCard({ title, description, qrValue, onScanClick, isFrozen }: ObjectiveCardProps) {
   return (
-    <div className="nexus-panel p-3.5 sm:p-4 lg:p-5 flex flex-col min-[420px]:flex-row gap-3 sm:gap-3.5 items-center min-[420px]:items-start justify-between text-center min-[420px]:text-left">
+    <div className="nexus-panel p-3.5 sm:p-4 lg:p-5 flex flex-col min-[420px]:flex-row gap-3 sm:gap-3.5 items-center min-[420px]:items-start justify-between text-center min-[420px]:text-left transition-transform duration-200 hover:scale-[1.02] hover:shadow-[0_0_24px_rgba(255,0,51,0.3)]">
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-center min-[420px]:justify-start gap-1.5 text-[#ff0033] font-digital font-bold text-[10.5px] sm:text-[11px] lg:text-xs tracking-[0.12em] mb-1.5">
           <span className="w-2.5 h-px bg-[#ff0033] hidden min-[420px]:inline-block" />

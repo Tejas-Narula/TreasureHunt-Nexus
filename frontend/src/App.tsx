@@ -4,10 +4,11 @@ import { Navbar } from './components/Navbar';
 import { BackgroundEffects } from './components/BackgroundEffects';
 import { LoginPage } from './components/LoginPage';
 import { HomePage } from './components/HomePage';
+import { MissionPage } from './pages/mission/MissionPage';
 import './index.css';
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<'login' | 'home'>('login');
+  const [activeTab, setActiveTab] = useState<'login' | 'home' | 'mission'>('login');
   const [themeMode, setThemeMode] = useState<ThemeMode>('hawkins');
   const [currentUser, setCurrentUser] = useState<OperativeUser | null>({
     agentId: 'NX7Q-DUSTIN',
@@ -45,18 +46,21 @@ export function App() {
       )}
 
       {/* Main Content Area */}
-      <main className="relative z-10 flex-1 flex flex-col">
-        {activeTab === 'login' ? (
-          <LoginPage
-            onLoginSuccess={(user) => setCurrentUser(user)}
-            onNavigateHome={() => setActiveTab('home')}
-          />
-        ) : (
-          <HomePage
-            currentUser={currentUser}
-            onNavigateLogin={() => setActiveTab('login')}
-          />
-        )}
+<main className="relative z-10 flex-1 flex flex-col">
+          {activeTab === 'login' ? (
+  <LoginPage
+    onLoginSuccess={(user) => setCurrentUser(user)}
+    onNavigateHome={() => setActiveTab('home')}
+  />
+) : activeTab === 'home' ? (
+  <HomePage
+    currentUser={currentUser}
+    onNavigateLogin={() => setActiveTab('login')}
+    onNavigateMission={() => setActiveTab('mission')}
+  />
+) : (
+  <MissionPage />
+)}
       </main>
 
       {/* Footer Status Bar - Only shown on Home Hub */}

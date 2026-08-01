@@ -19,6 +19,7 @@ import {
 interface HomePageProps {
   currentUser: OperativeUser | null;
   onNavigateLogin: () => void;
+  onNavigateMission: () => void;
 }
 
 const INITIAL_SECTORS: MapSector[] = [
@@ -84,7 +85,11 @@ const INITIAL_STATS: MissionStats = {
   soulsSaved: 15,
 };
 
-export const HomePage: React.FC<HomePageProps> = ({ currentUser }) => {
+export const HomePage: React.FC<HomePageProps> = ({
+  currentUser,
+ // onNavigateLogin,
+  onNavigateMission,
+}) => {
   // Countdown Timer state
   const [secondsLeft, setSecondsLeft] = useState(1727); // 28m 47s
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -422,7 +427,16 @@ export const HomePage: React.FC<HomePageProps> = ({ currentUser }) => {
               <Trophy className="w-4 h-4 text-amber-400" />
               <span>VIEW LEADERBOARD</span>
             </button>
-
+            <button
+   onClick={() => {
+    soundFx.playClick();
+    onNavigateMission();
+  }}
+  className="w-full nexus-btn py-2.5 sm:py-3 text-xs flex items-center justify-center gap-2 cursor-pointer"
+>
+  <RadioTower className="w-4 h-4 text-[#ff3355]" />
+  <span>GO TO MISSION</span>
+</button>
             <div className="flex gap-2">
               <button
                 onClick={() => soundFx.playClick()}

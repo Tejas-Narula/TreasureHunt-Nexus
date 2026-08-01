@@ -28,7 +28,7 @@ export function QRCode({ value, onClick, disabled, size = 200 }: QRCodeProps) {
       onClick={onClick}
       disabled={disabled}
       aria-label={disabled ? 'QR code locked until task is verified' : 'Open QR scanner'}
-      className={`w-[68px] h-[68px] sm:w-[74px] sm:h-[74px] shrink-0 rounded-md border p-1.5 flex items-center justify-center transition-all ${
+      className={`w-[92px] h-[92px] min-[420px]:w-[72px] min-[420px]:h-[72px] sm:w-[80px] sm:h-[80px] lg:w-[104px] lg:h-[104px] shrink-0 rounded-md border p-1.5 flex items-center justify-center transition-all ${
         disabled
           ? 'border-zinc-700 bg-zinc-900 opacity-40 cursor-not-allowed'
           : 'border-[#ff0033]/70 bg-white shadow-[0_0_12px_rgba(255,0,51,0.35)] hover:shadow-[0_0_20px_rgba(255,0,51,0.6)] hover:scale-[1.03] active:scale-[0.97] cursor-pointer'

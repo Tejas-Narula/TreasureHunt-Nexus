@@ -12,7 +12,7 @@ interface MissionPageProps {
   currentUser: OperativeUser;
 }
 
-export function MissionPage({ onBack, currentUser }: MissionPageProps) {
+export function MissionPage({ currentUser }: MissionPageProps) {
   const [showScanModal, setShowScanModal] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [scanComplete, setScanComplete] = useState(false);

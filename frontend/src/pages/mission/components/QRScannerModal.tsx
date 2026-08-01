@@ -1,4 +1,3 @@
-import React from 'react';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { Cpu } from 'lucide-react';
 
@@ -42,7 +41,6 @@ export function QRScannerModal({ onScan, onClose, isScanning, scanComplete }: QR
                   onScan(result[0].rawValue);
                 }
               }}
-              options={{ delayBetweenScanAttempts: 1000 }}
             />
           )}
         </div>

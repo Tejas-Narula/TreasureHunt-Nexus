@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Search, Play, Pause, RefreshCw, Square, Plus, CheckCircle, Trash2, ShieldAlert, Edit2, MapPin, Map, Users } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Search, Play, Pause, RefreshCw, Square, Plus, Trash2, Edit2, MapPin, Map, Users } from 'lucide-react';
 import './AdminPage.css';
 
 interface StepConfig {
@@ -73,7 +73,7 @@ async function fetchJson(url: string, options: RequestInit) {
 
 export const AdminPage: React.FC = () => {
   const [adminEmail, setAdminEmail] = useState<string>(() => sessionStorage.getItem('admin_email') || 'admin@nexus.com');
-  const [adminPassword, setAdminPassword] = useState<string>(() => sessionStorage.getItem('admin_password'));
+  const [adminPassword, setAdminPassword] = useState<string>(() => sessionStorage.getItem('admin_password') || '');
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => !!sessionStorage.getItem('admin_secret_verified'));
 
   const [gameState, setGameState] = useState<string>('unknown');
@@ -83,7 +83,6 @@ export const AdminPage: React.FC = () => {
   const [locations, setLocations] = useState<Location[]>([]);
   const [trails, setTrails] = useState<Trail[]>([]);
 
-  const [loading, setLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [successMsg, setSuccessMsg] = useState<string>('');
 
@@ -91,7 +90,6 @@ export const AdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'teams' | 'locations' | 'trails'>('teams');
 
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
-  const [selectedLocId, setSelectedLocId] = useState<string | null>(null);
   const [selectedTrailName, setSelectedTrailName] = useState<string | null>(null);
 
   // New Team Modal State
@@ -99,9 +97,6 @@ export const AdminPage: React.FC = () => {
   const [newTeamName, setNewTeamName] = useState<string>('');
   const [newTeamId, setNewTeamId] = useState<string>('');
   const [newPhone, setNewPhone] = useState<string>('');
-  const [newPlayerName, setNewPlayerName] = useState<string>('Captain');
-
-  const ws = useRef<WebSocket | null>(null);
 
   const getHeaders = () => ({
     'Content-Type': 'application/json',
@@ -110,7 +105,6 @@ export const AdminPage: React.FC = () => {
   });
 
   const fetchDashboardData = async () => {
-    setLoading(true);
     setErrorMsg('');
     try {
       const stateRes = await fetchJson(`${API_BASE}/game/state`, { headers: getHeaders() });
@@ -128,8 +122,6 @@ export const AdminPage: React.FC = () => {
       } else {
         setErrorMsg('Failed to load dashboard data.');
       }
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -278,7 +270,7 @@ export const AdminPage: React.FC = () => {
       await fetchJson(`${API_BASE}/teams`, {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify({ team_id: newTeamId, team_name: newTeamName, phone_number: newPhone, player_name: newPlayerName }),
+        body: JSON.stringify({ team_id: newTeamId, team_name: newTeamName, phone_number: newPhone }),
       });
       setSuccessMsg(`Team created!`);
       setShowCreateTeamModal(false);
@@ -301,8 +293,6 @@ export const AdminPage: React.FC = () => {
   }, [trails, searchQuery]);
 
   const selectedTeam = useMemo(() => teams.find(t => t.id === selectedTeamId), [teams, selectedTeamId]);
-  const selectedLocation = useMemo(() => locations.find(l => l.id === selectedLocId), [locations, selectedLocId]);
-  const selectedTrail = useMemo(() => trails.find(t => t.name === selectedTrailName), [trails, selectedTrailName]);
 
   // Locations Logic
   const [locFormName, setLocFormName] = useState('');

@@ -19,8 +19,12 @@ class StepConfig(BaseModel):
     task_description: Optional[str] = None
     qr_token: Optional[str] = None
 
+class Location(BaseModel):
+    name: str
+    code: str
+
 class Trail(BaseModel):
-    role_name: str
+    name: str
     steps: List[StepConfig] = []
 
 class PlayerHistory(BaseModel):
@@ -43,8 +47,6 @@ class Member(BaseModel):
     player_name: str
     phone_number: str
     character_role: Optional[str] = None
-    current_step: int = 0
-    history: List[PlayerHistory] = []
 
 class TeamCreate(BaseModel):
     team_id: str
@@ -64,6 +66,9 @@ class Team(BaseModel):
     team_name: str
     completed: bool = False
     penalty_minutes: int = 0
+    current_step: int = 0
+    history: List[PlayerHistory] = []
+    assigned_trail: Optional[str] = None
     members: List[Member] = []
 
 class LoginRequest(BaseModel):

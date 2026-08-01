@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Search, Play, Pause, RefreshCw, Square, Plus, Trash2, Edit2, MapPin, Map, Users } from 'lucide-react';
 import './AdminPage.css';
 
@@ -107,7 +107,7 @@ export const AdminPage: React.FC = () => {
   const [locations, setLocations] = useState<Location[]>([]);
   const [trails, setTrails] = useState<Trail[]>([]);
 
-  const [, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [successMsg, setSuccessMsg] = useState<string>('');
 
@@ -122,7 +122,9 @@ export const AdminPage: React.FC = () => {
   const [newTeamName, setNewTeamName] = useState<string>('');
   const [newTeamId, setNewTeamId] = useState<string>('');
   const [newPhone, setNewPhone] = useState<string>('');
-  const [newPlayerName] = useState<string>('Captain');
+  const [newPlayerName, setNewPlayerName] = useState<string>('Captain');
+
+  const ws = useRef<WebSocket | null>(null);
 
   const getHeaders = () => ({
     'Content-Type': 'application/json',
@@ -131,8 +133,8 @@ export const AdminPage: React.FC = () => {
   });
 
   const fetchDashboardData = async () => {
-    setLoading(true);
     setErrorMsg('');
+    setLoading(true);
     try {
       const stateRes = await fetchJson(`${API_BASE}/game/state`, { headers: getHeaders() });
       setGameState(stateRes.status);
@@ -299,11 +301,16 @@ export const AdminPage: React.FC = () => {
       await fetchJson(`${API_BASE}/teams`, {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify({ team_id: newTeamId, team_name: newTeamName, phone_number: newPhone, player_name: newPlayerName }),
+        body: JSON.stringify({
+          team_id: newTeamId,
+          team_name: newTeamName,
+          phone_number: newPhone,
+          player_name: newPlayerName,
+        }),
       });
       setSuccessMsg(`Team created!`);
       setShowCreateTeamModal(false);
-      setNewTeamId(''); setNewTeamName(''); setNewPhone('');
+      setNewTeamId(''); setNewTeamName(''); setNewPhone(''); setNewPlayerName('Captain');
       fetchDashboardData();
     } catch (err: any) { setErrorMsg(err.message); }
   };

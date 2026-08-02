@@ -40,7 +40,33 @@ export function MissionPage({ currentUser }: MissionPageProps) {
 
   useEffect(() => {
     fetchTeamData();
-    // In a real app, you might poll this or listen to websockets for step updates.
+    
+    // Listen for live admin overrides or team updates
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = import.meta.env.VITE_API_BASE_URL 
+      ? import.meta.env.VITE_API_BASE_URL.replace(/^https?:\/\//, '') 
+      : window.location.host;
+      
+    const wsUrl = import.meta.env.VITE_API_BASE_URL 
+      ? `${protocol}//${host}/ws/game`
+      : `ws://localhost:8000/ws/game`;
+
+    const ws = new WebSocket(wsUrl);
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'teams_updated') {
+          fetchTeamData();
+        }
+      } catch (err) {
+        console.error('Error parsing websocket message:', err);
+      }
+    };
+
+    return () => {
+      ws.close();
+    };
   }, [currentUser.teamId]);
 
   const handleOpenMap = () => {
@@ -113,6 +139,25 @@ export function MissionPage({ currentUser }: MissionPageProps) {
     id: s.step_number,
     label: s.location_name
   })) || [];
+
+  if (teamData?.completed) {
+    return (
+      <div className="min-h-[100dvh] w-full bg-[#070204] flex flex-col items-center justify-center p-6 text-center space-y-6 relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_150px_rgba(0,255,102,0.15)]" />
+        <h1 className="text-[#00ff66] font-creepster text-5xl sm:text-6xl md:text-7xl uppercase drop-shadow-[0_0_20px_rgba(0,255,102,0.8)] relative z-10 animate-pulse">
+          MISSION ACCOMPLISHED
+        </h1>
+        <p className="font-digital text-zinc-300 text-lg sm:text-xl tracking-widest relative z-10 max-w-lg">
+          GATE CLOSED. THE UPSIDE DOWN HAS BEEN CONTAINED.
+        </p>
+        <div className="mt-8 p-4 border border-[#00ff66]/30 bg-[#00ff66]/10 rounded-lg relative z-10 inline-block">
+          <p className="font-digital text-[#00ff66] text-xl tracking-[0.1em]">
+            FINAL CLEARANCE TIME: {teamData.completed_at ? new Date(teamData.completed_at).toLocaleTimeString() : 'UNKNOWN'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[100dvh] w-full bg-[#070204]">

@@ -289,14 +289,33 @@ def override_step(team_doc_id: str, request: OverrideStepRequest, background_tas
         trail_doc = db.collection("trails").document(assigned_trail).get()
         if trail_doc.exists:
             steps = trail_doc.to_dict().get("steps", [])
+            max_step = max([s.get("step_number", 0) for s in steps]) if steps else 0
+            
+            if new_step < 0 or new_step > max_step + 1:
+                raise HTTPException(status_code=400, detail=f"Invalid step {new_step}. Valid range is 0 to {max_step + 1}.")
+                
             has_next_step = any(s.get("step_number") == new_step for s in steps)
             if not has_next_step:
                 update_data["completed"] = True
                 update_data["completed_at"] = datetime.utcnow().isoformat() + "Z"
+            else:
+                update_data["completed"] = False
+                update_data["completed_at"] = None
                 
     team_ref.update(update_data)
     background_tasks.add_task(broadcast_ws, {"type": "teams_updated"})
     return {"status": "Step overridden", "new_step": new_step}
+
+@router.put("/teams/{team_doc_id}/clear_history")
+def clear_team_history(team_doc_id: str, background_tasks: BackgroundTasks):
+    db = get_db()
+    team_ref = db.collection("teams").document(team_doc_id)
+    if not team_ref.get().exists:
+        raise HTTPException(status_code=404, detail="Team not found")
+        
+    team_ref.update({"history": []})
+    background_tasks.add_task(broadcast_ws, {"type": "teams_updated"})
+    return {"status": "History cleared"}
 
 @router.get("/locations")
 def get_locations():

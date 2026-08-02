@@ -1,12 +1,16 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, BackgroundTasks
 from core.firebase import get_db
 from schemas.models import LoginRequest, LoginResponse, GameState, ScanRequest, ScanResponse, Team, Member, TeamInfoResponse, Trail
 from datetime import datetime
 
 router = APIRouter(prefix="/api/player", tags=["Player"])
 
+async def broadcast_ws(message: dict):
+    from core.websocket import manager
+    await manager.broadcast(message)
+
 @router.post("/login", response_model=LoginResponse)
-def login(request: LoginRequest):
+def login(request: LoginRequest, background_tasks: BackgroundTasks):
     db = get_db()
     
     teams_ref = db.collection("teams").where("team_id", "==", request.team_id).stream()
@@ -32,6 +36,8 @@ def login(request: LoginRequest):
         
     member_data = member_doc.to_dict()
     member_data["id"] = member_doc.id
+    
+    background_tasks.add_task(broadcast_ws, {"type": "teams_updated"})
     
     return LoginResponse(
         team=Team(**team_data),
@@ -85,7 +91,7 @@ def get_team_info(team_id: str):
     return TeamInfoResponse(team=team, trail=trail)
 
 @router.post("/scan", response_model=ScanResponse)
-def scan_qr(request: ScanRequest):
+def scan_qr(request: ScanRequest, background_tasks: BackgroundTasks):
     db = get_db()
     
     state_doc = db.collection("game_config").document("global_state").get()
@@ -120,7 +126,7 @@ def scan_qr(request: ScanRequest):
     trail_data = trail_doc.to_dict()
     steps = trail_data.get("steps", [])
     
-    target_step = current_step + 1
+    target_step = current_step
     step_config = None
     for step in steps:
         if step.get("step_number") == target_step:
@@ -143,7 +149,7 @@ def scan_qr(request: ScanRequest):
     if step_config.get("location_name") != request.qr_token:
         raise HTTPException(status_code=400, detail="Invalid QR token")
         
-    new_step = target_step
+    new_step = current_step + 1
     history = team_data.get("history", [])
     history.append({
         "step_number": current_step,
@@ -154,6 +160,13 @@ def scan_qr(request: ScanRequest):
     has_next_step = any(s.get("step_number") == new_step for s in steps)
     completed = not has_next_step
     
+    next_step_config = None
+    if not completed:
+        for step in steps:
+            if step.get("step_number") == new_step:
+                next_step_config = step
+                break
+    
     update_data = {
         "current_step": new_step,
         "history": history
@@ -163,6 +176,8 @@ def scan_qr(request: ScanRequest):
         update_data["completed_at"] = datetime.utcnow().isoformat() + "Z"
         
     db.collection("teams").document(team_doc.id).update(update_data)
+    
+    background_tasks.add_task(broadcast_ws, {"type": "teams_updated"})
     
     return ScanResponse(
         success=True,

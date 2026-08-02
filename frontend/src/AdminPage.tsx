@@ -90,6 +90,20 @@ export const AdminPage: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [successMsg, setSuccessMsg] = useState<string>('');
 
+  useEffect(() => {
+    if (errorMsg) {
+      const timer = setTimeout(() => setErrorMsg(''), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [errorMsg]);
+
+  useEffect(() => {
+    if (successMsg) {
+      const timer = setTimeout(() => setSuccessMsg(''), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMsg]);
+
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'teams' | 'locations' | 'trails'>('teams');
 
@@ -149,7 +163,6 @@ export const AdminPage: React.FC = () => {
       sessionStorage.setItem('admin_password', adminPassword);
       sessionStorage.setItem('admin_secret_verified', 'true');
       setIsAuthenticated(true);
-      fetchDashboardData();
     } catch (err: any) {
       setErrorMsg(err.message || 'Login failed');
     }
@@ -158,6 +171,32 @@ export const AdminPage: React.FC = () => {
   useEffect(() => {
     if (isAuthenticated) {
       fetchDashboardData();
+      
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = import.meta.env.VITE_API_BASE_URL 
+        ? import.meta.env.VITE_API_BASE_URL.replace(/^https?:\/\//, '') 
+        : window.location.host;
+        
+      const wsUrl = import.meta.env.VITE_API_BASE_URL 
+        ? `${protocol}//${host}/ws/game`
+        : `ws://localhost:8000/ws/game`;
+
+      const ws = new WebSocket(wsUrl);
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'teams_updated') {
+            fetchDashboardData();
+          }
+        } catch (err) {
+          console.error('Error parsing websocket message:', err);
+        }
+      };
+
+      return () => {
+        ws.close();
+      };
     }
   }, [isAuthenticated]);
 
@@ -218,20 +257,38 @@ export const AdminPage: React.FC = () => {
   };
 
   const handleOverrideTeamStep = async (team_doc_id: string, currentStep: number) => {
-    const newStep = prompt("Enter new step number for the ENTIRE team:", (currentStep + 1).toString());
+    const team = teams.find(t => t.id === team_doc_id);
+    const teamName = team ? team.team_name : 'Team';
+    
+    const newStep = prompt(`Enter new step number for ${teamName}:`, (currentStep + 1).toString());
     if (newStep !== null) {
       const parsedStep = parseInt(newStep, 10);
-      if (!window.confirm(`Are you sure you want to move the entire team to step ${parsedStep}?`)) return;
+      if (!window.confirm(`Are you sure you want to move ${teamName} from step ${currentStep} to step ${parsedStep}?`)) return;
       try {
         await fetchJson(`${API_BASE}/teams/${team_doc_id}/override_step`, {
           method: 'PUT',
           headers: getHeaders(),
           body: JSON.stringify({ new_step: parsedStep })
         });
+        setSuccessMsg(`Team ${teamName} step updated from ${currentStep} to ${parsedStep}`);
         await fetchDashboardData();
       } catch (err: any) {
         setErrorMsg(err.message);
       }
+    }
+  };
+
+  const handleClearTeamLogs = async (team_doc_id: string) => {
+    if (!window.confirm("Are you sure you want to clear this team's history logs?")) return;
+    try {
+      await fetchJson(`${API_BASE}/teams/${team_doc_id}/clear_history`, {
+        method: 'PUT',
+        headers: getHeaders()
+      });
+      setSuccessMsg('Team logs cleared');
+      await fetchDashboardData();
+    } catch (err: any) {
+      setErrorMsg(err.message);
     }
   };
 
@@ -591,7 +648,17 @@ export const AdminPage: React.FC = () => {
                   })()}
                 </div>
 
-                <h3 className="font-semibold mb-4">Activity Log</h3>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-semibold">Activity Log</h3>
+                  {selectedTeam.history && selectedTeam.history.length > 0 && (
+                    <button 
+                      onClick={() => handleClearTeamLogs(selectedTeam.id)}
+                      className="text-xs text-red-600 hover:bg-red-50 px-2 py-1 rounded transition border border-red-200 flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3 h-3" /> Clear Logs
+                    </button>
+                  )}
+                </div>
                 {selectedTeam.history && selectedTeam.history.length > 0 ? (
                   <div className="bg-white border rounded shadow-sm overflow-hidden">
                     <table className="w-full text-sm text-left">

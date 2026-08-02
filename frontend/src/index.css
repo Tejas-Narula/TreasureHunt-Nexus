@@ -14,6 +14,14 @@
   --font-stranger: 'Cinzel Decorative', 'Cinzel', serif;
   --font-digital: 'Share Tech Mono', 'VT323', monospace;
   --font-sans: 'Inter', sans-serif;
+  --font-itc: 'ITC Benguiat', serif;
+}
+
+@font-face {
+  font-family: 'ITC Benguiat';
+  src: url('/itc-font/ITCBenguiatStdBoldCn.OTF') format('opentype');
+  font-weight: bold;
+  font-style: normal;
 }
 
 * {
@@ -55,6 +63,10 @@ body {
 
 .font-digital {
   font-family: var(--font-digital);
+}
+
+.font-itc {
+  font-family: var(--font-itc);
 }
 
 /* Stranger Things Neon Red Title Glow */

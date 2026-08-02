@@ -70,6 +70,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
   return (
     <div className="relative min-h-[100dvh] w-full bg-black flex flex-col justify-center items-center p-4 sm:p-6 overflow-y-auto overflow-x-hidden touch-manipulation select-none">
       
+      {/* Background Image */}
+      <div 
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat z-0 bg-black brightness-50"
+        style={{ backgroundImage: `url('/loginpage.jpeg')` }}
+      />
       {/* Back Button */}
       <button
         onClick={() => {
@@ -86,17 +91,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
       <div className="relative z-10 w-full max-w-[340px] sm:max-w-md mx-auto">
         <form 
           onSubmit={handleSubmit} 
-          className="space-y-4 sm:space-y-6 bg-[#090205]/90 backdrop-blur-md p-6 sm:p-8 rounded-2xl border border-[#ff0033]/50 shadow-[0_0_40px_rgba(255,0,51,0.45)] hover:border-[#ff0033]/80 hover:shadow-[0_0_55px_rgba(255,0,51,0.65)] transition-all duration-500"
+          className="space-y-4 sm:space-y-6 bg-[#090205]/90 backdrop-blur-md p-6 sm:p-8 rounded-2xl border border-[#ff0033]/50 hover:border-[#ff0033]/80 transition-all duration-500"
         >
-          {/* Section Title Header: — ENTER HAWKINS — with dot line accents matching reference */}
-          <div className="flex items-center justify-center gap-2 sm:gap-3 font-digital text-[#ff3355] tracking-widest text-sm sm:text-lg font-bold uppercase drop-shadow-[0_0_12px_#ff0033] mb-4">
-            <span className="w-8 sm:w-12 h-[1px] bg-[#ff0033]/70 relative flex items-center justify-end">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#ff0033] shadow-[0_0_6px_#ff0033]" />
-            </span>
-            <span className="hover:text-white transition-colors cursor-default tracking-[0.25em]">LOGIN TO NEXUS</span>
-            <span className="w-8 sm:w-12 h-[1px] bg-[#ff0033]/70 relative flex items-center justify-start">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#ff0033] shadow-[0_0_6px_#ff0033]" />
-            </span>
+          {/* Section Title Header */}
+          <div className="flex justify-center mb-6 sm:mb-8">
+            <span className="text-[rgb(253,242,229)] cursor-default tracking-normal font-itc text-2xl sm:text-4xl uppercase">ENTER THE UPSIDE DOWN</span>
           </div>
           
           {/* Team Name Input */}
@@ -150,15 +149,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full min-h-[56px] py-4 rounded-lg border border-[#ff0033] bg-[#ff0033]/20 hover:bg-[#ff0033] active:bg-[#e6002e] text-[#ff3355] hover:text-white font-digital font-bold text-lg sm:text-xl tracking-widest hover:tracking-[0.2em] uppercase transition-all duration-300 shadow-[0_0_20px_rgba(255,0,51,0.5)] hover:shadow-[0_0_35px_rgba(255,0,51,0.9)] hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer mt-4"
+            className="w-full min-h-[64px] py-4 rounded-lg border border-[#ff0033] bg-[#ff0033]/20 hover:bg-[#ff0033] active:bg-[#e6002e] text-[#ff3355] hover:text-white font-itc font-bold text-[22px] sm:text-3xl tracking-normal uppercase transition-all duration-300 shadow-[0_0_20px_rgba(255,0,51,0.5)] hover:shadow-[0_0_35px_rgba(255,0,51,0.9)] hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer mt-4"
           >
             {isLoading ? (
               <span className="flex items-center gap-2">
-                <Cpu className="w-6 h-6 animate-spin" />
                 CONNECTING...
               </span>
             ) : (
-              <span>ACCESS NEXUS</span>
+              <span>ACCESS PORTAL</span>
             )}
           </button>
         </form>

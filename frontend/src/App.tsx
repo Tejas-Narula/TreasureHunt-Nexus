@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import type { ThemeMode, OperativeUser } from './types';
 import { LogOut } from 'lucide-react';
 import { soundFx } from './utils/audio';
@@ -119,47 +120,90 @@ export function App() {
       )}
 
       {/* Main Content Area */}
-<main className="relative z-10 flex-1 flex flex-col">
-          {activeTab === 'welcome' ? (
-  <WelcomePage onEnter={() => setActiveTab('login')} />
-) : activeTab === 'login' ? (
-  <LoginPage
-    onLoginSuccess={async (user) => {
-      setCurrentUser(user);
-      try {
-        const res = await fetch(import.meta.env.VITE_API_BASE_URL ? `${import.meta.env.VITE_API_BASE_URL}/api/player/state` : '/api/player/state');
-        if (res.ok) {
-          const data = await res.json();
-          if (data.status === 'active') {
-            setActiveTab('mission');
-            return;
-          }
-        }
-        // Fallback to check localhost if API_BASE is missing or failing (dev env workaround)
-        if (!res.ok && !import.meta.env.VITE_API_BASE_URL) {
-           const fb = await fetch(`http://127.0.0.1:8000/api/player/state`);
-           if (fb.ok) {
-             const fbData = await fb.json();
-             if (fbData.status === 'active') {
-               setActiveTab('mission');
-             } else {
-               setActiveTab(fbData.status || 'waiting');
-             }
-             return;
-           }
-        }
-      } catch (err) {
-        console.error('Failed to check game state', err);
-      }
-      setActiveTab('waiting');
-    }}
-    onNavigateHome={() => setActiveTab('welcome')}
-  />
-) : activeTab === 'waiting' || activeTab === 'paused' || activeTab === 'ended' ? (
-  <GameStatusPage status={activeTab as 'waiting' | 'paused' | 'ended'} />
-) : (
-  <MissionPage onBack={() => setActiveTab('waiting')} currentUser={currentUser!} />
-)}
+      <main className="relative z-10 flex-1 flex flex-col overflow-hidden">
+        <AnimatePresence>
+          {activeTab === 'welcome' && (
+            <motion.div
+              key="welcome"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.8, ease: "easeInOut" }}
+              className="absolute inset-0 flex flex-col"
+            >
+              <WelcomePage onEnter={() => setActiveTab('login')} />
+            </motion.div>
+          )}
+
+          {activeTab === 'login' && (
+            <motion.div
+              key="login"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.8, ease: "easeInOut" }}
+              className="absolute inset-0 flex flex-col"
+            >
+              <LoginPage
+                onLoginSuccess={async (user) => {
+                  setCurrentUser(user);
+                  try {
+                    const res = await fetch(import.meta.env.VITE_API_BASE_URL ? `${import.meta.env.VITE_API_BASE_URL}/api/player/state` : '/api/player/state');
+                    if (res.ok) {
+                      const data = await res.json();
+                      if (data.status === 'active') {
+                        setActiveTab('mission');
+                        return;
+                      }
+                    }
+                    if (!res.ok && !import.meta.env.VITE_API_BASE_URL) {
+                      const fb = await fetch(`http://127.0.0.1:8000/api/player/state`);
+                      if (fb.ok) {
+                        const fbData = await fb.json();
+                        if (fbData.status === 'active') {
+                          setActiveTab('mission');
+                        } else {
+                          setActiveTab(fbData.status || 'waiting');
+                        }
+                        return;
+                      }
+                    }
+                  } catch (err) {
+                    console.error('Failed to check game state', err);
+                  }
+                  setActiveTab('waiting');
+                }}
+                onNavigateHome={() => setActiveTab('welcome')}
+              />
+            </motion.div>
+          )}
+
+          {(activeTab === 'waiting' || activeTab === 'paused' || activeTab === 'ended') && (
+            <motion.div
+              key="gamestatus"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.8, ease: "easeInOut" }}
+              className="absolute inset-0 flex flex-col"
+            >
+              <GameStatusPage status={activeTab as 'waiting' | 'paused' | 'ended'} />
+            </motion.div>
+          )}
+
+          {activeTab === 'mission' && (
+            <motion.div
+              key="mission"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.8, ease: "easeInOut" }}
+              className="absolute inset-0 flex flex-col"
+            >
+              <MissionPage onBack={() => setActiveTab('waiting')} currentUser={currentUser!} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
 
       {/* Footer Status Bar - Only shown on Home Hub */}

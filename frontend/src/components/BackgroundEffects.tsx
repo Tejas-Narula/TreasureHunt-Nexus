@@ -15,7 +15,7 @@ export const BackgroundEffects: React.FC<BackgroundEffectsProps> = ({ themeMode 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    let animationFrameId: number;
+
     let width = (canvas.width = window.innerWidth);
     let height = (canvas.height = window.innerHeight);
 
@@ -23,33 +23,12 @@ export const BackgroundEffects: React.FC<BackgroundEffectsProps> = ({ themeMode 
       if (!canvas) return;
       width = canvas.width = window.innerWidth;
       height = canvas.height = window.innerHeight;
+      render();
     };
 
     window.addEventListener('resize', handleResize);
 
-    // Particle Spores configuration
-    const particleCount = themeMode === 'upsidedown' ? 120 : 60;
-    interface Spore {
-      x: number;
-      y: number;
-      size: number;
-      speedY: number;
-      speedX: number;
-      opacity: number;
-      pulseSpeed: number;
-    }
-
-    const spores: Spore[] = Array.from({ length: particleCount }, () => ({
-      x: Math.random() * width,
-      y: Math.random() * height,
-      size: Math.random() * 3 + 1,
-      speedY: -(Math.random() * 0.8 + 0.2), // float upward
-      speedX: (Math.random() - 0.5) * 0.5,
-      opacity: Math.random() * 0.8 + 0.2,
-      pulseSpeed: Math.random() * 0.02 + 0.005,
-    }));
-
-    const render = () => {
+      const render = () => {
       ctx.clearRect(0, 0, width, height);
 
       // Draw background ambient dark vortex glow
@@ -76,44 +55,12 @@ export const BackgroundEffects: React.FC<BackgroundEffectsProps> = ({ themeMode 
 
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, width, height);
-
-      // Render floating spores
-      spores.forEach((spore) => {
-        spore.y += spore.speedY;
-        spore.x += spore.speedX + Math.sin(spore.y * 0.01) * 0.3;
-
-        // Reset if spore floats off screen
-        if (spore.y < -10) {
-          spore.y = height + 10;
-          spore.x = Math.random() * width;
-        }
-
-        spore.opacity += Math.sin(Date.now() * spore.pulseSpeed) * 0.01;
-        const currentOpacity = Math.max(0.1, Math.min(0.9, spore.opacity));
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(spore.x, spore.y, spore.size, 0, Math.PI * 2);
-
-        // Red atmospheric spore glow
-        ctx.fillStyle = themeMode === 'upsidedown' 
-          ? `rgba(255, 30, 60, ${currentOpacity})`
-          : `rgba(255, 80, 100, ${currentOpacity * 0.8})`;
-
-        ctx.shadowColor = '#ff0033';
-        ctx.shadowBlur = spore.size * 4;
-        ctx.fill();
-        ctx.restore();
-      });
-
-      animationFrameId = requestAnimationFrame(render);
     };
 
     render();
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      cancelAnimationFrame(animationFrameId);
     };
   }, [themeMode]);
 

@@ -24,9 +24,29 @@ def get_admin_game_state():
 @router.put("/game/start")
 def start_game(background_tasks: BackgroundTasks):
     db = get_db()
+    
+    # Ensure all teams have a balanced trail assignment
+    trails_ref = db.collection("trails").stream()
+    trail_ids = [trail.id for trail in trails_ref]
+    if trail_ids:
+        teams_ref = list(db.collection("teams").stream())
+        unassigned_teams = [t for t in teams_ref if not t.to_dict().get("assigned_trail")]
+        if unassigned_teams:
+            counts = {t_id: 0 for t_id in trail_ids}
+            for t in teams_ref:
+                at = t.to_dict().get("assigned_trail")
+                if at in counts:
+                    counts[at] += 1
+            for team in unassigned_teams:
+                min_count = min(counts.values())
+                min_trails = [t_id for t_id, c in counts.items() if c == min_count]
+                chosen = random.choice(min_trails)
+                team.reference.update({"assigned_trail": chosen})
+                counts[chosen] += 1
+
     db.collection("game_config").document("global_state").set({
         "status": "active",
-        "start_time": datetime.utcnow().isoformat()
+        "start_time": datetime.utcnow().isoformat() + "Z"
     }, merge=True)
     background_tasks.add_task(broadcast_ws, {"type": "game_state", "status": "active"})
     return {"status": "Game started"}
@@ -53,21 +73,26 @@ def stop_game(background_tasks: BackgroundTasks):
 def reset_game(background_tasks: BackgroundTasks):
     db = get_db()
     db.collection("game_config").document("global_state").set({
-        "status": "waiting"
+        "status": "waiting",
+        "start_time": None
     }, merge=True)
     
-    # Fetch all trails to randomly assign
+    # Fetch all trails to evenly assign
     trails_ref = db.collection("trails").stream()
     trail_ids = [trail.id for trail in trails_ref]
     
-    # Reset all participants positions and assign random trails
-    teams_ref = db.collection("teams").stream()
-    for team in teams_ref:
-        assigned_trail = random.choice(trail_ids) if trail_ids else None
+    # Reset all participants positions and assign trails in round-robin fashion
+    teams_ref = list(db.collection("teams").stream())
+    random.shuffle(teams_ref)
+    
+    for idx, team in enumerate(teams_ref):
+        assigned_trail = trail_ids[idx % len(trail_ids)] if trail_ids else None
         team.reference.update({
             "current_step": 0,
             "history": [],
-            "assigned_trail": assigned_trail
+            "assigned_trail": assigned_trail,
+            "completed": False,
+            "completed_at": None
         })
 
     background_tasks.add_task(broadcast_ws, {"type": "game_state", "status": "waiting"})
@@ -106,6 +131,21 @@ def create_team(team: Union[TeamWithMemberCreate, TeamCreate], background_tasks:
     team_doc_id = f"team_{uuid.uuid4().hex[:8]}"
     team_name = getattr(team, "team_name", None) or f"Team {team.team_id}"
     
+    # Assign trail with fewest current assignments
+    trails_ref = db.collection("trails").stream()
+    trail_ids = [trail.id for trail in trails_ref]
+    assigned_trail = None
+    if trail_ids:
+        teams_ref = db.collection("teams").stream()
+        counts = {t_id: 0 for t_id in trail_ids}
+        for t in teams_ref:
+            at = t.to_dict().get("assigned_trail")
+            if at in counts:
+                counts[at] += 1
+        min_count = min(counts.values())
+        min_trails = [t_id for t_id, c in counts.items() if c == min_count]
+        assigned_trail = random.choice(min_trails)
+
     team_data = {
         "team_id": team.team_id,
         "team_name": team_name,
@@ -113,7 +153,7 @@ def create_team(team: Union[TeamWithMemberCreate, TeamCreate], background_tasks:
         "penalty_minutes": 0,
         "current_step": 0,
         "history": [],
-        "assigned_trail": None
+        "assigned_trail": assigned_trail
     }
     db.collection("teams").document(team_doc_id).set(team_data)
     team_data["id"] = team_doc_id
@@ -195,16 +235,29 @@ def approve_task(team_doc_id: str, background_tasks: BackgroundTasks):
     history = team_data.get("history", [])
     history.append({
         "step_number": current_step,
-        "scanned_at": datetime.utcnow().isoformat(),
+        "scanned_at": datetime.utcnow().isoformat() + "Z",
         "status": "task_approved"
     })
     
-    team_ref.update({
-        "current_step": current_step + 1,
+    assigned_trail = team_data.get("assigned_trail")
+    new_step = current_step + 1
+    update_data = {
+        "current_step": new_step,
         "history": history
-    })
+    }
+    
+    if assigned_trail:
+        trail_doc = db.collection("trails").document(assigned_trail).get()
+        if trail_doc.exists:
+            steps = trail_doc.to_dict().get("steps", [])
+            has_next_step = any(s.get("step_number") == new_step for s in steps)
+            if not has_next_step:
+                update_data["completed"] = True
+                update_data["completed_at"] = datetime.utcnow().isoformat() + "Z"
+                
+    team_ref.update(update_data)
     background_tasks.add_task(broadcast_ws, {"type": "teams_updated"})
-    return {"status": "Task approved", "new_step": current_step + 1}
+    return {"status": "Task approved", "new_step": new_step}
 
 @router.put("/teams/{team_doc_id}/override_step")
 def override_step(team_doc_id: str, request: OverrideStepRequest, background_tasks: BackgroundTasks):
@@ -221,16 +274,29 @@ def override_step(team_doc_id: str, request: OverrideStepRequest, background_tas
     history = team_data.get("history", [])
     history.append({
         "step_number": current_step,
-        "scanned_at": datetime.utcnow().isoformat(),
+        "scanned_at": datetime.utcnow().isoformat() + "Z",
         "status": "admin_override"
     })
     
-    team_ref.update({
-        "current_step": request.new_step,
+    assigned_trail = team_data.get("assigned_trail")
+    new_step = request.new_step
+    update_data = {
+        "current_step": new_step,
         "history": history
-    })
+    }
+    
+    if assigned_trail:
+        trail_doc = db.collection("trails").document(assigned_trail).get()
+        if trail_doc.exists:
+            steps = trail_doc.to_dict().get("steps", [])
+            has_next_step = any(s.get("step_number") == new_step for s in steps)
+            if not has_next_step:
+                update_data["completed"] = True
+                update_data["completed_at"] = datetime.utcnow().isoformat() + "Z"
+                
+    team_ref.update(update_data)
     background_tasks.add_task(broadcast_ws, {"type": "teams_updated"})
-    return {"status": "Step overridden", "new_step": request.new_step}
+    return {"status": "Step overridden", "new_step": new_step}
 
 @router.get("/locations")
 def get_locations():

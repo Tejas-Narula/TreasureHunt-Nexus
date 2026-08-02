@@ -120,43 +120,49 @@ def scan_qr(request: ScanRequest):
     trail_data = trail_doc.to_dict()
     steps = trail_data.get("steps", [])
     
+    target_step = current_step + 1
     step_config = None
     for step in steps:
-        if step.get("step_number") == current_step:
+        if step.get("step_number") == target_step:
             step_config = step
             break
             
     if not step_config:
-        if current_step > 0 and current_step >= len(steps):
-            return ScanResponse(success=False, message="Game completed", completed=True)
+        max_step = max(s.get("step_number", 0) for s in steps) if steps else 0
+        if current_step >= max_step:
+            db.collection("teams").document(team_doc.id).update({
+                "completed": True,
+                "completed_at": datetime.utcnow().isoformat() + "Z"
+            })
+            return ScanResponse(success=True, message="Game completed", completed=True)
         raise HTTPException(status_code=400, detail="Invalid current step")
         
     if step_config.get("step_type") != "qr_scan":
         raise HTTPException(status_code=403, detail="Current step is a special task, cannot be bypassed with QR")
         
-    if step_config.get("qr_token") != request.qr_token:
+    if step_config.get("location_name") != request.qr_token:
         raise HTTPException(status_code=400, detail="Invalid QR token")
         
-    new_step = current_step + 1
+    new_step = target_step
     history = team_data.get("history", [])
     history.append({
         "step_number": current_step,
-        "scanned_at": datetime.utcnow().isoformat(),
-        "status": "completed"
+        "scanned_at": datetime.utcnow().isoformat() + "Z",
+        "status": "qr_scan"
     })
     
-    db.collection("teams").document(team_doc.id).update({
+    has_next_step = any(s.get("step_number") == new_step for s in steps)
+    completed = not has_next_step
+    
+    update_data = {
         "current_step": new_step,
         "history": history
-    })
-    
-    next_step_config = None
-    for step in steps:
-        if step.get("step_number") == new_step:
-            next_step_config = step
-            break
-            
-    completed = next_step_config is None
+    }
+    if completed:
+        update_data["completed"] = True
+        update_data["completed_at"] = datetime.utcnow().isoformat() + "Z"
+        
+    db.collection("teams").document(team_doc.id).update(update_data)
     
     return ScanResponse(
         success=True,

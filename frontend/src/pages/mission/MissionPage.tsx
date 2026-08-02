@@ -104,7 +104,7 @@ export function MissionPage({ currentUser }: MissionPageProps) {
   }
 
   // Derive current mission step info
-  const currentStepNum = teamData?.current_step || 1;
+  const currentStepNum = teamData?.current_step ?? 0;
   const currentStepConfig = trailData?.steps?.find((s: any) => s.step_number === currentStepNum);
   const totalSteps = trailData?.steps?.length || 1;
   
@@ -137,8 +137,10 @@ export function MissionPage({ currentUser }: MissionPageProps) {
               time={new Date().toISOString()}
               introLines={["INCOMING CLUE FROM NEXUS COMMAND."]}
               clueText={currentStepConfig?.step_type === 'special_task' 
-                ? (currentStepConfig.task_description || 'Perform physical task.')
+                ? (currentStepConfig?.task_description || 'Perform physical task.')
                 : (currentStepConfig?.clue_text || "Awaiting transmission...")}
+              storyText={currentStepConfig?.story_text}
+              hintText={currentStepConfig?.hint_text}
               onViewOnMap={handleOpenMap}
             />
           </div>

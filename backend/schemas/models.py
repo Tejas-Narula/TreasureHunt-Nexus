@@ -17,7 +17,8 @@ class StepConfig(BaseModel):
     location_name: str
     clue_text: str
     task_description: Optional[str] = None
-    qr_token: Optional[str] = None
+    story_text: Optional[str] = None
+    hint_text: Optional[str] = None
 
 class Location(BaseModel):
     name: str

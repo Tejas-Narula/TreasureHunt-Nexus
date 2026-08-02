@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Play, Pause, RefreshCw, Square, Plus, Trash2, Edit2, MapPin, Map, Users } from 'lucide-react';
+import { Search, Play, Pause, RefreshCw, Square, Plus, Trash2, Edit2, MapPin, Map, Users, Download } from 'lucide-react';
+import QRCode from 'qrcode';
+import JSZip from 'jszip';
 import './AdminPage.css';
 
 interface StepConfig {
@@ -8,7 +10,8 @@ interface StepConfig {
   location_name: string;
   clue_text: string;
   task_description?: string;
-  qr_token?: string;
+  story_text?: string;
+  hint_text?: string;
 }
 
 interface Member {
@@ -23,6 +26,7 @@ interface Team {
   team_id: string;
   team_name: string;
   completed?: boolean;
+  completed_at?: string;
   penalty_minutes?: number;
   current_step: number;
   history?: any[];
@@ -188,6 +192,31 @@ export const AdminPage: React.FC = () => {
     }
   };
 
+  const handleDownloadQRs = async () => {
+    try {
+      const zip = new JSZip();
+      for (const loc of locations) {
+        // Generate a QR code as a data URI (base64 PNG)
+        const dataUrl = await QRCode.toDataURL(loc.code, { width: 500, margin: 2 });
+        // The dataUrl is in format "data:image/png;base64,iVBORw0KGgo..."
+        const base64Data = dataUrl.replace(/^data:image\/png;base64,/, "");
+        zip.file(`${loc.name}_${loc.code}.png`, base64Data, { base64: true });
+      }
+      const content = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(content);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'nexus_qr_codes.zip';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setSuccessMsg('QR Codes downloaded successfully');
+    } catch (e: any) {
+      setErrorMsg('Failed to generate QR codes: ' + e.message);
+    }
+  };
+
   const handleOverrideTeamStep = async (team_doc_id: string, currentStep: number) => {
     const newStep = prompt("Enter new step number for the ENTIRE team:", (currentStep + 1).toString());
     if (newStep !== null) {
@@ -280,6 +309,19 @@ export const AdminPage: React.FC = () => {
   };
 
   // derived data
+  const completedTeamsRank = useMemo(() => {
+    const completed = [...teams].filter(t => t.completed).sort((a, b) => {
+      const aTime = a.completed_at ? new Date(a.completed_at).getTime() : 0;
+      const bTime = b.completed_at ? new Date(b.completed_at).getTime() : 0;
+      return aTime - bTime;
+    });
+    const rankMap: Record<string, number> = {};
+    completed.forEach((t, i) => {
+      rankMap[t.id] = i + 1;
+    });
+    return rankMap;
+  }, [teams]);
+
   const sortedTeams = useMemo(() => {
     return [...teams].filter(t => t.team_id.toLowerCase().includes(searchQuery.toLowerCase()) || t.team_name.toLowerCase().includes(searchQuery.toLowerCase())).sort((a, b) => (b.current_step || 0) - (a.current_step || 0));
   }, [teams, searchQuery]);
@@ -328,7 +370,7 @@ export const AdminPage: React.FC = () => {
   };
 
   const handleAddTrailStep = () => {
-    setTrailSteps([...trailSteps, { step_number: trailSteps.length + 1, step_type: 'qr_scan', location_name: '', clue_text: '', qr_token: '' }]);
+    setTrailSteps([...trailSteps, { step_number: trailSteps.length, step_type: 'qr_scan', location_name: '', clue_text: '', story_text: '', hint_text: '' }]);
   };
 
   const handleUpdateTrailStep = (index: number, field: keyof StepConfig, value: any) => {
@@ -338,7 +380,7 @@ export const AdminPage: React.FC = () => {
   };
 
   const handleRemoveTrailStep = (index: number) => {
-    const newSteps = trailSteps.filter((_, i) => i !== index).map((s, i) => ({ ...s, step_number: i + 1 }));
+    const newSteps = trailSteps.filter((_, i) => i !== index).map((s, i) => ({ ...s, step_number: i }));
     setTrailSteps(newSteps);
   };
 
@@ -385,9 +427,14 @@ export const AdminPage: React.FC = () => {
             </div>
             <div className="flex items-center gap-2">
               {(!gameState || gameState === 'waiting' || gameState === 'unknown') && (
-                <button onClick={() => handleGameAction('start')} className="px-4 py-1.5 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition shadow-sm flex items-center gap-1">
-                  <Play className="w-4 h-4" /> Start
-                </button>
+                <>
+                  <button onClick={() => handleGameAction('start')} className="px-4 py-1.5 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition shadow-sm flex items-center gap-1">
+                    <Play className="w-4 h-4" /> Start
+                  </button>
+                  <button onClick={() => handleGameAction('reset')} className="px-4 py-1.5 bg-slate-500 text-white rounded-md text-sm font-medium hover:bg-slate-600 transition shadow-sm flex items-center gap-1">
+                    <RefreshCw className="w-4 h-4" /> Reset
+                  </button>
+                </>
               )}
 
               {gameState === 'active' && (
@@ -441,12 +488,24 @@ export const AdminPage: React.FC = () => {
             {activeTab === 'trails' && (
               <button onClick={openNewTrail} className="bg-black text-white px-3 py-1.5 rounded text-sm flex items-center justify-center gap-2"><Plus className="w-4 h-4" /> New Trail</button>
             )}
+            {activeTab === 'locations' && (
+              <button onClick={handleDownloadQRs} className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm flex items-center justify-center gap-2"><Download className="w-4 h-4" /> Download QRs</button>
+            )}
           </div>
           <div className="flex-1 overflow-y-auto">
             {activeTab === 'teams' && sortedTeams.map(t => (
-              <div key={t.id} onClick={() => setSelectedTeamId(t.id)} className={`p-4 border-b cursor-pointer ${selectedTeamId === t.id ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-                <div className="font-medium text-sm">{t.team_name}</div>
-                <div className="text-xs text-gray-500">LVL {t.current_step || 0} | {t.team_id}</div>
+              <div key={t.id} onClick={() => setSelectedTeamId(t.id)} className={`p-4 border-b cursor-pointer flex justify-between items-center ${selectedTeamId === t.id ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                <div>
+                  <div className="font-medium text-sm flex items-center gap-2">
+                    {t.team_name}
+                    {t.completed && (
+                      <span className="px-1.5 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold rounded-sm whitespace-nowrap">
+                        #{completedTeamsRank[t.id]}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-500">LVL {t.current_step || 0} | {t.team_id}</div>
+                </div>
               </div>
             ))}
             {activeTab === 'locations' && sortedLocations.map(l => (
@@ -507,6 +566,64 @@ export const AdminPage: React.FC = () => {
                   </div>
                 ))}
               </div>
+
+              <div className="mt-8 border-t pt-4">
+                <h3 className="font-semibold mb-4">Mission Status</h3>
+                <div className="bg-white p-4 rounded border shadow-sm mb-6 text-sm">
+                  <div className="mb-2"><strong>Assigned Trail:</strong> {selectedTeam.assigned_trail || 'None'}</div>
+                  {(() => {
+                    if (!selectedTeam.assigned_trail) return null;
+                    const trail = trails.find(t => t.name === selectedTeam.assigned_trail);
+                    if (!trail) return null;
+                    const currentStep = trail.steps.find(s => s.step_number === selectedTeam.current_step);
+                    if (!currentStep) return <div className="text-green-600 font-bold">Mission Completed!</div>;
+                    return (
+                      <>
+                        <div className="mb-2"><strong>Current Location:</strong> {currentStep.location_name}</div>
+                        {currentStep.step_type === 'qr_scan' && (
+                          <div className="mb-2"><strong>Current Clue:</strong> {currentStep.clue_text}</div>
+                        )}
+                        {currentStep.step_type === 'special_task' && (
+                          <div><strong>Current Task:</strong> {currentStep.task_description}</div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+
+                <h3 className="font-semibold mb-4">Activity Log</h3>
+                {selectedTeam.history && selectedTeam.history.length > 0 ? (
+                  <div className="bg-white border rounded shadow-sm overflow-hidden">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-gray-50 border-b">
+                        <tr>
+                          <th className="px-4 py-2 font-medium">Step</th>
+                          <th className="px-4 py-2 font-medium">Status</th>
+                          <th className="px-4 py-2 font-medium">Time</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedTeam.history.map((h, i) => {
+                          const nextStep = selectedTeam.history[i + 1] ? selectedTeam.history[i + 1].step_number : selectedTeam.current_step;
+                          return (
+                            <tr key={i} className="border-b last:border-b-0">
+                              <td className="px-4 py-2">Step {h.step_number} &rarr; {nextStep}</td>
+                              <td className="px-4 py-2">
+                                <span className={`px-2 py-1 rounded text-xs ${h.status === 'admin_override' ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'}`}>
+                                  {h.status.replace('_', ' ').toUpperCase()}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2 text-gray-500">{new Date(h.scanned_at).toLocaleTimeString()}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 bg-gray-50 p-4 rounded border border-dashed">No activity logged yet.</p>
+                )}
+              </div>
             </div>
           )}
 
@@ -544,28 +661,35 @@ export const AdminPage: React.FC = () => {
                           <option value="special_task">Special Task</option>
                         </select>
                       </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Location</label>
-                        <select className="w-full border rounded p-1.5 text-sm" value={step.location_name} onChange={e => handleUpdateTrailStep(idx, 'location_name', e.target.value)}>
-                          <option value="">Select a location...</option>
-                          {locations.map(l => (
-                            <option key={l.code} value={l.code}>{l.name} ({l.code})</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="mb-3">
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Clue Text</label>
-                      <textarea className="w-full border rounded p-1.5 text-sm" rows={2} value={step.clue_text} onChange={e => handleUpdateTrailStep(idx, 'clue_text', e.target.value)}></textarea>
+                      {step.step_type === 'qr_scan' && (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Location</label>
+                          <select className="w-full border rounded p-1.5 text-sm" value={step.location_name} onChange={e => handleUpdateTrailStep(idx, 'location_name', e.target.value)}>
+                            <option value="">Select a location...</option>
+                            {locations.map(l => (
+                              <option key={l.code} value={l.code}>{l.name} ({l.code})</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
                     </div>
 
                     {step.step_type === 'qr_scan' && (
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">QR Token (optional)</label>
-                        <input type="text" className="w-full border rounded p-1.5 text-sm font-mono" value={step.qr_token || ''} onChange={e => handleUpdateTrailStep(idx, 'qr_token', e.target.value)} />
+                      <div className="mb-3">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Clue Text</label>
+                        <textarea className="w-full border rounded p-1.5 text-sm" rows={2} value={step.clue_text} onChange={e => handleUpdateTrailStep(idx, 'clue_text', e.target.value)}></textarea>
                       </div>
                     )}
+
+                    <div className="mb-3">
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Story Text</label>
+                      <textarea className="w-full border rounded p-1.5 text-sm" rows={2} value={step.story_text || ''} onChange={e => handleUpdateTrailStep(idx, 'story_text', e.target.value)}></textarea>
+                    </div>
+
+                    <div className="mb-3">
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Hint Text</label>
+                      <textarea className="w-full border rounded p-1.5 text-sm" rows={2} value={step.hint_text || ''} onChange={e => handleUpdateTrailStep(idx, 'hint_text', e.target.value)}></textarea>
+                    </div>
 
                     {step.step_type === 'special_task' && (
                       <div>

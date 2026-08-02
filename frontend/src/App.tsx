@@ -1,17 +1,39 @@
 import { useState, useEffect } from 'react';
 import type { ThemeMode, OperativeUser } from './types';
+import { LogOut } from 'lucide-react';
+import { soundFx } from './utils/audio';
 import { Navbar } from './components/Navbar';
 import { BackgroundEffects } from './components/BackgroundEffects';
+import { WelcomePage } from './components/WelcomePage';
 import { LoginPage } from './components/LoginPage';
 import { GameStatusPage } from './components/GameStatusPage';
 import { MissionPage } from './pages/mission/MissionPage';
 import './index.css';
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<'login' | 'waiting' | 'paused' | 'ended' | 'mission' | 'home'>('login');
+  const [activeTab, setActiveTab] = useState<'welcome' | 'login' | 'waiting' | 'paused' | 'ended' | 'mission' | 'home'>(() => {
+    const saved = localStorage.getItem('nexus_tab');
+    return (saved as any) || 'welcome';
+  });
   const [themeMode, setThemeMode] = useState<ThemeMode>('hawkins');
-  const [currentUser, setCurrentUser] = useState<OperativeUser | null>(null);
+  const [currentUser, setCurrentUser] = useState<OperativeUser | null>(() => {
+    const saved = localStorage.getItem('nexus_user');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [isMuted, setIsMuted] = useState(false);
+
+  // Sync state to localStorage
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('nexus_user', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('nexus_user');
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    localStorage.setItem('nexus_tab', activeTab);
+  }, [activeTab]);
 
   // Apply upsidedown mode body class for corrupted filters
   useEffect(() => {
@@ -24,7 +46,7 @@ export function App() {
 
   // Global WebSocket listener for game state
   useEffect(() => {
-    if (!currentUser || activeTab === 'login') return;
+    if (!currentUser || activeTab === 'welcome' || activeTab === 'login') return;
     
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = import.meta.env.VITE_API_BASE_URL 
@@ -80,9 +102,27 @@ export function App() {
         />
       )}
 
+      {/* Global Logout Button for active logged-in states (except home) */}
+      {currentUser && !['welcome', 'login', 'home'].includes(activeTab) && (
+        <button
+          onClick={() => {
+            soundFx.playClick();
+            setCurrentUser(null);
+            setActiveTab('welcome');
+          }}
+          className="absolute top-4 right-4 z-50 p-2 flex items-center gap-2 rounded border border-[#ff0033]/30 bg-[#150308]/80 text-[#ff4d6d] hover:bg-[#ff0033]/20 hover:text-[#ff0033] transition-colors font-digital text-sm uppercase shadow-[0_0_15px_rgba(255,0,51,0.3)]"
+          title="Log Out"
+        >
+          <span className="hidden sm:inline">LOGOUT</span>
+          <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
+        </button>
+      )}
+
       {/* Main Content Area */}
 <main className="relative z-10 flex-1 flex flex-col">
-          {activeTab === 'login' ? (
+          {activeTab === 'welcome' ? (
+  <WelcomePage onEnter={() => setActiveTab('login')} />
+) : activeTab === 'login' ? (
   <LoginPage
     onLoginSuccess={async (user) => {
       setCurrentUser(user);
@@ -113,7 +153,7 @@ export function App() {
       }
       setActiveTab('waiting');
     }}
-    onNavigateHome={() => {}}
+    onNavigateHome={() => setActiveTab('welcome')}
   />
 ) : activeTab === 'waiting' || activeTab === 'paused' || activeTab === 'ended' ? (
   <GameStatusPage status={activeTab as 'waiting' | 'paused' | 'ended'} />

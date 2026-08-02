@@ -5,7 +5,7 @@ from typing import Literal
 
 GameStatus = Literal["waiting", "active", "paused", "ended"]
 StepType = Literal["qr_scan", "special_task"]
-MemberStatus = Literal["completed", "admin_override", "task_approved"]
+MemberStatus = Literal["completed", "admin_override", "task_approved", "qr_scan", "special_task"]
 
 class GameState(BaseModel):
     status: GameStatus = "waiting"

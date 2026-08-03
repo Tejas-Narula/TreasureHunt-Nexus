@@ -1,5 +1,4 @@
 import { Scanner } from '@yudiel/react-qr-scanner';
-import { Cpu } from 'lucide-react';
 
 interface QRScannerModalProps {
   onScan: (text: string) => void;
@@ -31,7 +30,6 @@ export function QRScannerModal({ onScan, onClose, isScanning, scanComplete }: QR
             </div>
           ) : isScanning ? (
             <div className="flex flex-col items-center justify-center h-full min-h-[300px] gap-4">
-              <Cpu className="w-12 h-12 text-[#ff0033] animate-spin" />
               <span className="font-digital text-lg text-[#ff0033]">VERIFYING...</span>
             </div>
           ) : (

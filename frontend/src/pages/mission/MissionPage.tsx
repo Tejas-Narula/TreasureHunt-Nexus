@@ -169,14 +169,10 @@ export function MissionPage({ currentUser }: MissionPageProps) {
       <div className="max-w-7xl mx-auto p-3 sm:p-5 lg:p-6 space-y-4 sm:space-y-5 lg:space-y-6">
         
         {/* Stylized Header replacing old Header component */}
-        <div className="flex flex-col items-center justify-center mt-4 sm:mt-6 mb-8">
-          <h1 className="text-[#ff0033] font-creepster text-4xl sm:text-5xl lg:text-6xl tracking-widest uppercase drop-shadow-[0_0_15px_#ff0033]">
+        <div className="flex flex-col items-center justify-center mt-12 sm:mt-16 lg:mt-20 mb-8">
+          <h1 className="text-[rgb(253,242,229)] font-itc text-3xl sm:text-6xl lg:text-8xl tracking-normal uppercase whitespace-nowrap">
             INTO THE UPSIDE DOWN
           </h1>
-        </div>
-
-        <div className="text-center font-digital text-[#ff3355] font-bold text-[11px] sm:text-xs tracking-[0.25em]">
-          TRANSMISSION RECEIVED
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 lg:gap-6">

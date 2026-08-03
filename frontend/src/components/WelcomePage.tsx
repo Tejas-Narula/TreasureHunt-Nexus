@@ -13,8 +13,7 @@ export const WelcomePage: React.FC<WelcomePageProps> = ({ onEnter }) => {
   };
 
   return (
-    <div className="relative h-[100dvh] w-full bg-[#070204] flex flex-col justify-between items-center p-3 sm:p-6 overflow-hidden touch-manipulation select-none
-">
+    <div className="fixed inset-0 bg-[#070204] flex flex-col justify-between items-center p-3 sm:p-6 overflow-hidden touch-manipulation select-none">
       {/* 
         Full Background Image 
       */}

@@ -16,6 +16,7 @@ export function MissionPage({ currentUser }: MissionPageProps) {
   const [showScanModal, setShowScanModal] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [scanComplete, setScanComplete] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
   const [showMapModal, setShowMapModal] = useState(false);
 
   const [teamData, setTeamData] = useState<any>(null);
@@ -82,6 +83,7 @@ export function MissionPage({ currentUser }: MissionPageProps) {
   const handleScan = async (qrText: string) => {
     if (isScanning || scanComplete) return;
     setIsScanning(true);
+    setScanError(null);
     soundFx.playClick();
 
     try {
@@ -105,11 +107,13 @@ export function MissionPage({ currentUser }: MissionPageProps) {
         }, 2000);
       } else {
         soundFx.playAccessDenied();
-        // optionally show error message in scanner modal
+        const errData = await res.json().catch(() => ({}));
+        setScanError(errData.detail || 'INVALID QR CODE');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
       soundFx.playAccessDenied();
+      setScanError(err.message || 'CONNECTION ERROR');
     } finally {
       setIsScanning(false);
     }
@@ -119,6 +123,7 @@ export function MissionPage({ currentUser }: MissionPageProps) {
     setShowScanModal(false);
     setScanComplete(false);
     setIsScanning(false);
+    setScanError(null);
   };
 
   if (isLoading) {
@@ -212,6 +217,8 @@ export function MissionPage({ currentUser }: MissionPageProps) {
           onClose={closeModal}
           isScanning={isScanning}
           scanComplete={scanComplete}
+          scanError={scanError}
+          onClearError={() => setScanError(null)}
         />
       )}
 

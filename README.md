@@ -134,7 +134,7 @@ You can run both the frontend and backend concurrently from the root directory o
 ## Key Configuration & Customization
 
 ### CORS Settings
-The CORS policy in `backend/api/index.py` is configured with `allow_origins=["*"]` and `allow_credentials=False` to allow cross-origin API and WebSocket requests across various client deployment scenarios.
+The CORS policy in `backend/api/index.py` is configured with `allow_origins=["*"]` and `allow_credentials=False` to allow cross-origin API and WebSocket requests across various client deployment scenarios. This will be changed once launched to production.
 
 ### Real-Time Communications
 Real-time dashboard updates are facilitated via WebSockets at the `/ws/game` endpoint, managed by the connection manager located in `backend/core/websocket.py`.

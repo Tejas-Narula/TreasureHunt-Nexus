@@ -68,7 +68,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
   };
 
   return (
-    <div className="relative min-h-[100dvh] w-full bg-black flex flex-col justify-center items-center p-4 sm:p-6 overflow-y-auto overflow-x-hidden touch-manipulation select-none">
+    <div className="relative h-[100dvh] w-full bg-black flex flex-col justify-center items-center p-4 sm:p-6 overflow-hidden touch-manipulation select-none
+">
       
       {/* Background Image */}
       <div 

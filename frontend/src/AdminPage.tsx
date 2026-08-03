@@ -670,8 +670,8 @@ export const AdminPage: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {selectedTeam.history.map((h, i) => {
-                          const nextStep = selectedTeam.history![i + 1] ? selectedTeam.history![i + 1].step_number : selectedTeam.current_step;
+                        {selectedTeam.history?.map((h, i, arr) => {
+                          const nextStep = arr[i + 1] ? arr[i + 1].step_number : selectedTeam.current_step;
                           return (
                             <tr key={i} className="border-b last:border-b-0">
                               <td className="px-4 py-2">Step {h.step_number} &rarr; {nextStep}</td>

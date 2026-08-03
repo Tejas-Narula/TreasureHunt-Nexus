@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { OperativeUser } from '../types';
 import { soundFx } from '../utils/audio';
-import { Users, Lock, Eye, EyeOff, Key, AlertTriangle, Cpu, ArrowLeft } from 'lucide-react';
+import { Users, Lock, Eye, EyeOff, Key, AlertTriangle, ArrowLeft } from 'lucide-react';
 
 interface LoginPageProps {
   onLoginSuccess: (user: OperativeUser) => void;

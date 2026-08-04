@@ -3,3 +3,4 @@ pydantic
 pydantic-settings
 firebase-admin
 uvicorn
+gunicorn

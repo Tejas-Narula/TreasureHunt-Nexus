@@ -1,5 +1,3 @@
-import { X, Skull, MapPin, Zap } from 'lucide-react';
-import { useEffect, useState } from 'react';
 
 interface TrailNode {
   id: number;

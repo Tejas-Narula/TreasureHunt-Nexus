@@ -1,4 +1,4 @@
-# Nexus Treasure Hunt - Technical Documentation
+# Nexus Treasure Hunt - Technical Documentation 
 
 This repository contains the source code for the **Nexus Treasure Hunt** application, a real-time QR code-based treasure hunt game. The project is split into a Python-based FastAPI backend and a React/TypeScript/Vite-based frontend.
 

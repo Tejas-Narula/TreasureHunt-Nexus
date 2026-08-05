@@ -1,8 +1,10 @@
-import { X, CheckCircle2, Lock, Radio } from 'lucide-react';
+import { X, Skull, MapPin, Zap } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 interface TrailNode {
   id: number;
   label: string;
+  type?: string;
 }
 
 interface TrailMapModalProps {
@@ -14,111 +16,149 @@ interface TrailMapModalProps {
   trail: string;
 }
 
-// Hand-placed points so the trail reads like a winding path rather than a
-// straight line. Extend this array if a real event ever has more stops.
-const POSITIONS = [
-  { x: 55, y: 440 },
-  { x: 160, y: 360 },
-  { x: 85, y: 250 },
-  { x: 225, y: 175 },
-  { x: 150, y: 60 },
-];
-
-/** Full-screen trail map — shows every clue location and how far the team has gotten. */
-export function TrailMapModal({ isOpen, onClose, nodes, currentIndex, trail }: TrailMapModalProps) {
+export function TrailMapModal({ isOpen, onClose, nodes, currentIndex }: TrailMapModalProps) {
   if (!isOpen) return null;
 
-  const points = nodes.map((_, i) => POSITIONS[i] ?? POSITIONS[POSITIONS.length - 1]);
+  // Use a 4:3 aspect ratio coordinate system to match typical map images
+  const width = 1024;
+  const height = 768;
+  
+  const generatePoints = () => {
+    const points = [];
+    const count = nodes.length || 1;
+    for (let i = 0; i < count; i++) {
+      const progress = i / (count - 1 || 1);
+      // Winding path through the map area
+      const x = 150 + (progress * (width - 300));
+      // Zig zag Y to cover the map visually
+      const yOffset = Math.sin(progress * Math.PI * 2.5) * 200;
+      const y = height / 2 + yOffset;
+      points.push({ x, y });
+    }
+    return points;
+  };
+
+  const points = generatePoints();
   const pathD = points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ');
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm"
+      className="fixed inset-0 z-[70] flex items-center justify-center p-2 sm:p-8 bg-black/95 backdrop-blur-xl"
       role="dialog"
       aria-modal="true"
       aria-label="Trail map"
       onClick={onClose}
     >
       <div
-        className="nexus-panel w-full max-w-md p-4 sm:p-5 border-[#ff0033] shadow-[0_0_40px_rgba(255,0,51,0.5)] max-h-[90vh] overflow-y-auto"
+        className="relative w-full max-w-6xl aspect-[4/3] rounded shadow-[0_0_100px_rgba(255,0,0,0.3)] flex overflow-hidden border-2 border-[#1a0509]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-[#ff0033]/30 pb-2.5 mb-4">
-          <span className="font-digital text-xs sm:text-sm text-[#ff4d6d] font-bold tracking-[0.12em]">
-            TRAIL {trail} · MAP
-          </span>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close map"
-            className="text-zinc-400 hover:text-white p-1 -m-1 cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
 
-        <svg viewBox="0 0 300 500" className="w-full h-auto max-h-[45vh]">
-          <path d={pathD} fill="none" stroke="rgba(255,0,51,0.35)" strokeWidth="2" strokeDasharray="6 6" />
-          {points.map((p, i) => {
-            const nodeNumber = i + 1;
-            const isComplete = nodeNumber < currentIndex;
-            const isCurrent = nodeNumber === currentIndex;
-            return (
-              <g key={nodes[i].id}>
-                <circle
-                  cx={p.x}
-                  cy={p.y}
-                  r={isCurrent ? 16 : 12}
-                  fill={isComplete ? '#00ff66' : isCurrent ? '#ff0033' : '#1a0308'}
-                  stroke={isCurrent ? '#ff3355' : 'rgba(255,0,51,0.5)'}
-                  strokeWidth="2"
-                  className={isCurrent ? 'pulse-beacon' : ''}
-                />
-                <text
-                  x={p.x}
-                  y={p.y + 4}
-                  textAnchor="middle"
-                  fontSize="11"
-                  fontFamily="var(--font-digital)"
-                  fill={isComplete || isCurrent ? '#070204' : '#888'}
-                >
-                  {nodeNumber}
-                </text>
-              </g>
-            );
-          })}
-        </svg>
 
-        <div className="mt-4 space-y-2">
-          {nodes.map((n, i) => {
-            const nodeNumber = i + 1;
-            const isComplete = nodeNumber < currentIndex;
-            const isCurrent = nodeNumber === currentIndex;
-            return (
-              <div
-                key={n.id}
-                className={`flex items-center gap-2 font-digital text-[11px] sm:text-xs px-2 py-1.5 rounded transition-colors ${
-                  isCurrent
-                    ? 'bg-[#ff0033]/10 border border-[#ff0033]/40 text-[#ff4d6d]'
-                    : 'text-zinc-500'
-                }`}
-              >
-                {isComplete ? (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-[#00ff66] shrink-0" />
-                ) : isCurrent ? (
-                  <Radio className="w-3.5 h-3.5 text-[#ff0033] shrink-0" />
-                ) : (
-                  <Lock className="w-3.5 h-3.5 shrink-0" />
-                )}
-                <span>{n.label}</span>
-                {isCurrent && (
-                  <span className="ml-auto text-[9px] tracking-wider text-[#ff4d6d]">
-                    YOU ARE HERE
-                  </span>
-                )}
-              </div>
-            );
-          })}
+        {/* Map Background Image */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center opacity-85" 
+          style={{ backgroundImage: "url('/map.png')" }}
+        />
+        
+        {/* Upside Down Atmospheric Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-red-900/10 via-transparent to-blue-900/10 mix-blend-overlay pointer-events-none" />
+        <div className="absolute inset-0 shadow-[inset_0_0_100px_rgba(0,0,0,0.8)] pointer-events-none" />
+
+        <div className="relative w-full h-full">
+          <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full drop-shadow-[0_0_15px_rgba(255,0,0,0.5)] z-10" preserveAspectRatio="xMidYMid slice">
+            {/* Trail Path */}
+            <path 
+              d={pathD} 
+              fill="none" 
+              stroke="rgba(255,0,51,0.6)" 
+              strokeWidth="5" 
+              strokeDasharray="12 12" 
+              className="drop-shadow-[0_0_5px_rgba(255,0,0,1)]"
+            />
+            
+            {points.map((p, i) => {
+              const nodeNumber = i + 1;
+              const isComplete = nodes[i].id < currentIndex;
+              const isCurrent = nodes[i].id === currentIndex;
+              const isTask = nodes[i].type === 'special_task';
+              
+              return (
+                <g key={nodes[i].id} className="transition-all duration-700 hover:scale-125" style={{ transformOrigin: `${p.x}px ${p.y}px` }}>
+                  {/* Stranger Things "Portal/Rift" Effect for nodes */}
+                  {isCurrent && (
+                    <>
+                      <circle cx={p.x} cy={p.y} r="75" fill="rgba(255,0,51,0.15)" className="animate-ping" />
+                      <circle cx={p.x} cy={p.y} r="60" fill="url(#rift-glow)" className="animate-pulse" />
+                      <defs>
+                        <radialGradient id="rift-glow" cx="50%" cy="50%" r="50%">
+                          <stop offset="0%" stopColor="rgba(255,0,51,0.6)" />
+                          <stop offset="100%" stopColor="rgba(0,0,0,0)" />
+                        </radialGradient>
+                      </defs>
+                    </>
+                  )}
+                  
+                  {/* Node Shape */}
+                  {isComplete ? (
+                    <circle cx={p.x} cy={p.y} r="27" fill="#00ff66" opacity="0.8" stroke="#070204" strokeWidth="6" />
+                  ) : isCurrent ? (
+                    <path 
+                      d={`M ${p.x} ${p.y-37} L ${p.x+30} ${p.y+22} L ${p.x-30} ${p.y+22} Z`} 
+                      fill="#ff0033" 
+                      stroke="#070204" 
+                      strokeWidth="6" 
+                      className="drop-shadow-[0_0_10px_rgba(255,0,51,1)]"
+                    />
+                  ) : (
+                    <circle cx={p.x} cy={p.y} r="21" fill="#1a0509" stroke="#ff0033" strokeWidth="4" opacity="0.6" />
+                  )}
+                  
+                  {/* Inner Icons/Numbers */}
+                  {isComplete ? (
+                    <path d={`M ${p.x - 9} ${p.y} L ${p.x - 3} ${p.y + 6} L ${p.x + 9} ${p.y - 6}`} fill="none" stroke="#070204" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                  ) : isTask && !isCurrent ? (
+                    <g transform={`translate(${p.x - 14}, ${p.y - 14}) scale(1.5)`} stroke="#ff0033" fill="none" strokeWidth="2">
+                      <path d="M9 12l-5-3 5-3 5 3-5 3z" />
+                      <path d="M9 12v6" />
+                      <path d="M4 9v6l5 3" />
+                      <path d="M14 9v6l-5 3" />
+                    </g>
+                  ) : !isCurrent && (
+                    <text
+                      x={p.x}
+                      y={p.y + 7}
+                      textAnchor="middle"
+                      fontSize="20"
+                      fontFamily="var(--font-digital)"
+                      fill="#ff0033"
+                      fontWeight="bold"
+                    >
+                      {nodeNumber}
+                    </text>
+                  )}
+
+                  {/* Label (Floating Stranger Things style) */}
+                  {isCurrent && (
+                    <g transform={`translate(${p.x}, ${p.y + 50})`}>
+                      <text
+                        x="0"
+                        y="20"
+                        textAnchor="middle"
+                        fontSize="24"
+                        fontFamily="var(--font-itc)"
+                        fill={isComplete ? '#00ff66' : isCurrent ? '#ff0033' : 'rgba(255,255,255,0.7)'}
+                        className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] tracking-widest"
+                        style={{ textShadow: '2px 2px 4px black' }}
+                      >
+                        {nodes[i].label}
+                      </text>
+                    </g>
+                  )}
+                </g>
+              );
+            })}
+          </svg>
         </div>
       </div>
     </div>

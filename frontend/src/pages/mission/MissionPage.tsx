@@ -142,7 +142,8 @@ export function MissionPage({ currentUser }: MissionPageProps) {
   // Format trail nodes for map
   const trailNodes = trailData?.steps?.map((s: any) => ({
     id: s.step_number,
-    label: s.location_name
+    label: s.location_name,
+    type: s.step_type,
   })) || [];
 
   if (teamData?.completed) {

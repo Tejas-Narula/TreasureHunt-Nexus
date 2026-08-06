@@ -136,23 +136,7 @@ export function TrailMapModal({ isOpen, onClose, nodes, currentIndex }: TrailMap
                     </text>
                   )}
 
-                  {/* Label (Floating Stranger Things style) */}
-                  {isCurrent && (
-                    <g transform={`translate(${p.x}, ${p.y + 50})`}>
-                      <text
-                        x="0"
-                        y="20"
-                        textAnchor="middle"
-                        fontSize="24"
-                        fontFamily="var(--font-itc)"
-                        fill={isComplete ? '#00ff66' : isCurrent ? '#ff0033' : 'rgba(255,255,255,0.7)'}
-                        className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] tracking-widest"
-                        style={{ textShadow: '2px 2px 4px black' }}
-                      >
-                        {nodes[i].label}
-                      </text>
-                    </g>
-                  )}
+                      {/* Text label removed as requested */}
                 </g>
               );
             })}

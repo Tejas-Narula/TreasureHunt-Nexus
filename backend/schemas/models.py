@@ -26,6 +26,7 @@ class Location(BaseModel):
 
 class Trail(BaseModel):
     name: str
+    total_steps: int = 0
     steps: List[StepConfig] = []
 
 class PlayerHistory(BaseModel):

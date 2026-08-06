@@ -119,6 +119,13 @@ export function App() {
         </button>
       )}
 
+      {/* Global Top Left Logo for non-welcome pages */}
+      {activeTab !== 'welcome' && (
+        <div className="absolute top-4 left-4 z-50 pointer-events-none">
+          <img src="/logo.jpg" alt="Nexus Logo" className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-[0_0_15px_rgba(255,0,51,0.5)]" />
+        </div>
+      )}
+
       {/* Main Content Area */}
       <main className="relative z-10 flex-1 flex flex-col overflow-hidden">
         <AnimatePresence>

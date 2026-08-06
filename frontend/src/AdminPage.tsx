@@ -186,7 +186,7 @@ export const AdminPage: React.FC = () => {
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (data.type === 'teams_updated') {
+          if (data.type === 'teams_updated' || data.type === 'team_updated') {
             fetchDashboardData();
           }
         } catch (err) {

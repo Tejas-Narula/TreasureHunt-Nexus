@@ -44,7 +44,11 @@ export function MissionPage({ currentUser }: MissionPageProps) {
   const fetchTeamData = async () => {
     try {
       const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
-      const res = await fetch(`${baseUrl}/api/player/team/${currentUser.teamId}`);
+      const res = await fetch(`${baseUrl}/api/player/team/${currentUser.teamId}`, {
+        headers: {
+          'Authorization': `Bearer ${currentUser.token || ''}`,
+        }
+      });
       if (res.ok) {
         const data = await res.json();
         setTeamData(data.team);
@@ -109,7 +113,10 @@ export function MissionPage({ currentUser }: MissionPageProps) {
       const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
       const res = await fetch(`${baseUrl}/api/player/scan`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentUser.token || ''}`,
+        },
         body: JSON.stringify({
           team_id: currentUser.teamId,
           player_id: currentUser.playerId,

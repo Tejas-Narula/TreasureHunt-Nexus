@@ -3,6 +3,7 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from core.firebase import get_db
+from core.auth import get_token_hash
 
 def seed_database():
     db = get_db()
@@ -24,7 +25,7 @@ def seed_database():
                 "step_type": "qr_scan",
                 "location_name": "Hawkins Lab Main Gate",
                 "clue_text": "Head to the main lab entrance. Scan the QR code near the yellow warning sign.",
-                "qr_token": "LAB-GATE-11"
+                "qr_token": get_token_hash("LAB-GATE-11")
             },
             {
                 "step_number": 1,
@@ -38,7 +39,7 @@ def seed_database():
                 "step_type": "qr_scan",
                 "location_name": "The Upside Down Portal",
                 "clue_text": "Descend into the basement portal. Scan the code near the red light.",
-                "qr_token": "UPSIDE-DOWN-PORTAL-88"
+                "qr_token": get_token_hash("UPSIDE-DOWN-PORTAL-88")
             }
         ]
     })
@@ -51,7 +52,7 @@ def seed_database():
                 "step_type": "qr_scan",
                 "location_name": "Radio Tower (Cerebro)",
                 "clue_text": "Climb up to Cerebro's antenna station. Scan the code on the transceiver.",
-                "qr_token": "CEREBRO-TOWER-01"
+                "qr_token": get_token_hash("CEREBRO-TOWER-01")
             },
             {
                 "step_number": 1,

@@ -9,6 +9,7 @@ export interface OperativeUser {
   teamDocId: string;
   playerId: string;
   phoneNumber: string;
+  token?: string;
 }
 
 export interface MapSector {

@@ -45,7 +45,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
         teamId: data.team.team_id,
         teamDocId: data.team.id,
         playerId: data.member.id,
-        phoneNumber: data.member.phone_number,
+        phoneNumber: data.member.phone_number || phone.trim(),
+        token: data.token,
       };
 
       setSuccessMsg(`CLEARANCE GRANTED FOR ${data.team.team_name.toUpperCase()}! ENTERING HAWKINS...`);
@@ -75,18 +76,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigate
         className="fixed inset-0 bg-cover bg-center bg-no-repeat z-0 bg-black brightness-50"
         style={{ backgroundImage: `url('/loginpage.jpeg')` }}
       />
-      {/* Back Button */}
-      <button
-        onClick={() => {
-          soundFx.playClick();
-          onNavigateHome();
-        }}
-        className="absolute top-4 left-4 sm:top-6 sm:left-6 z-50 p-2 sm:p-2.5 flex items-center gap-2 rounded-lg border border-[#ff0033]/30 bg-[#090205]/80 text-zinc-400 hover:bg-[#ff0033]/20 hover:text-[#ff3355] transition-all duration-300 font-digital text-xs sm:text-sm uppercase tracking-widest shadow-[0_0_15px_rgba(255,0,51,0.15)] hover:shadow-[0_0_20px_rgba(255,0,51,0.4)]"
-      >
-        <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-        <span className="hidden sm:inline">BACK</span>
-      </button>
-
       {/* Centered Form Container */}
       <div className="relative z-10 w-full max-w-[340px] sm:max-w-md mx-auto">
         <form 

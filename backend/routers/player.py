@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException, status, BackgroundTasks, Request
+from fastapi import APIRouter, HTTPException, status, BackgroundTasks, Request, Depends
 from core.limiter import limiter
 from core.firebase import get_db
-from schemas.models import LoginRequest, LoginResponse, GameState, ScanRequest, ScanResponse, Team, Member, TeamInfoResponse, Trail
-from datetime import datetime
+from core.auth import create_access_token, get_current_player, verify_token_hash
+from schemas.models import LoginRequest, LoginResponse, GameState, ScanRequest, ScanResponse, Team, Member, TeamInfoResponse, Trail, PublicTeam
+from datetime import datetime, timedelta
 import time
 from google.cloud import firestore
 
@@ -76,9 +77,16 @@ def login(request: Request, login_data: LoginRequest, background_tasks: Backgrou
     member_data = member_doc.to_dict()
     member_data["id"] = member_doc.id
     
+    access_token_expires = timedelta(minutes=60 * 24 * 7)
+    access_token = create_access_token(
+        data={"team_id": team_data["team_id"], "player_id": member_data["id"]},
+        expires_delta=access_token_expires
+    )
+    
     return LoginResponse(
         team=Team(**team_data),
-        member=Member(**member_data)
+        member=Member(**member_data),
+        token=access_token
     )
 
 @router.get("/state", response_model=GameState)
@@ -90,61 +98,72 @@ def get_game_state(request: Request):
 
 @router.get("/team/{team_id}", response_model=TeamInfoResponse)
 @limiter.limit("5000/minute")
-def get_team_info(request: Request, team_id: str):
-    db = get_db()
-    
-    # fetch team
-    teams_ref = db.collection("teams").where("team_id", "==", team_id).stream()
-    team_doc = None
-    for doc in teams_ref:
-        team_doc = doc
-        break
+def get_team_info(request: Request, team_id: str, current_player: dict = Depends(get_current_player)):
+    if current_player["team_id"] != team_id:
+        raise HTTPException(status_code=403, detail="Not authorized to view this team")
         
-    if not team_doc:
-        raise HTTPException(status_code=404, detail="Team not found")
+    try:
+        db = get_db()
         
-    team_data = team_doc.to_dict()
-    team_data["id"] = team_doc.id
-    
-    # fetch members
-    members = []
-    members_ref = db.collection("teams").document(team_doc.id).collection("members").stream()
-    for doc in members_ref:
-        member_data = doc.to_dict()
-        member_data["id"] = doc.id
-        members.append(member_data)
-        
-    team_data["members"] = members
-    team = Team(**team_data)
-    
-    trail = None
-    if team.assigned_trail:
-        trail_data = get_cached_trail(db, team.assigned_trail)
-        if trail_data:
-            # ANTI-CHEAT: redact future steps to preserve step_type for map
-            current_step = team.current_step
-            safe_steps = []
-            for step in trail_data.get("steps", []):
-                s = step.copy()
-                if s.get("step_number") > current_step:
-                    s["location_name"] = "CLASSIFIED"
-                    s["clue_text"] = "CLASSIFIED"
-                    s["hint_text"] = "CLASSIFIED"
-                    if "story_text" in s: s["story_text"] = "CLASSIFIED"
-                    if "task_description" in s: s["task_description"] = "CLASSIFIED"
-                safe_steps.append(s)
+        # fetch team
+        teams_ref = db.collection("teams").where("team_id", "==", team_id).stream()
+        team_doc = None
+        for doc in teams_ref:
+            team_doc = doc
+            break
             
-            # Create a copy so we don't mutate the cached dictionary
-            safe_trail_data = trail_data.copy()
-            safe_trail_data["total_steps"] = len(safe_steps)
-            safe_trail_data["steps"] = safe_steps
-            trail = Trail(**safe_trail_data)
+        if not team_doc:
+            raise HTTPException(status_code=404, detail="Team not found")
             
-    return TeamInfoResponse(team=team, trail=trail)
+        team_data = team_doc.to_dict()
+        team_data["id"] = team_doc.id
+        
+        # fetch members
+        members = []
+        members_ref = db.collection("teams").document(team_doc.id).collection("members").stream()
+        for doc in members_ref:
+            member_data = doc.to_dict()
+            member_data["id"] = doc.id
+            members.append(member_data)
+            
+        team_data["members"] = members
+        team = PublicTeam(**team_data)
+        
+        trail = None
+        if team.assigned_trail:
+            trail_data = get_cached_trail(db, team.assigned_trail)
+            if trail_data:
+                # ANTI-CHEAT: redact future steps to preserve step_type for map
+                current_step = team.current_step
+                safe_steps = []
+                for step in trail_data.get("steps", []):
+                    s = step.copy()
+                    if s.get("step_number") > current_step:
+                        s["location_name"] = "CLASSIFIED"
+                        s["clue_text"] = "CLASSIFIED"
+                        s["hint_text"] = "CLASSIFIED"
+                        if "story_text" in s: s["story_text"] = "CLASSIFIED"
+                        if "task_description" in s: s["task_description"] = "CLASSIFIED"
+                    safe_steps.append(s)
+                
+                # Create a copy so we don't mutate the cached dictionary
+                safe_trail_data = trail_data.copy()
+                safe_trail_data["total_steps"] = len(safe_steps)
+                safe_trail_data["steps"] = safe_steps
+                trail = Trail(**safe_trail_data)
+                
+        return TeamInfoResponse(team=team, trail=trail)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/scan", response_model=ScanResponse)
 @limiter.limit("5/minute")
-def scan_qr(request: Request, scan_data: ScanRequest, background_tasks: BackgroundTasks):
+def scan_qr(request: Request, scan_data: ScanRequest, background_tasks: BackgroundTasks, current_player: dict = Depends(get_current_player)):
+    if current_player["team_id"] != scan_data.team_id or current_player["player_id"] != scan_data.player_id:
+        raise HTTPException(status_code=403, detail="Invalid token identity")
+        
     db = get_db()
     
     state_dict = get_cached_game_state(db)
@@ -207,8 +226,18 @@ def scan_qr(request: Request, scan_data: ScanRequest, background_tasks: Backgrou
         if step_config.get("step_type") != "qr_scan":
             raise HTTPException(status_code=403, detail="Current step is a special task, cannot be bypassed with QR")
             
-        if step_config.get("location_name") != scan_data.qr_token:
-            raise HTTPException(status_code=400, detail="Invalid QR token")
+        hashed_token = step_config.get("qr_token")
+        if not hashed_token:
+            # Fallback for old seeds if qr_token isn't present
+            if step_config.get("location_name") != scan_data.qr_token:
+                raise HTTPException(status_code=400, detail="Invalid QR token")
+        elif not hashed_token.startswith("$2b$") and not hashed_token.startswith("$2a$"):
+            # Fallback for local dev if DB hasn't been re-seeded
+            if hashed_token != scan_data.qr_token:
+                raise HTTPException(status_code=400, detail="Invalid QR token")
+        else:
+            if not verify_token_hash(scan_data.qr_token, hashed_token):
+                raise HTTPException(status_code=400, detail="Invalid QR token")
             
         new_step = current_step + 1
         history = team_data.get("history", [])

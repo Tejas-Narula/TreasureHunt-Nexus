@@ -75,6 +75,29 @@ async function fetchJson(url: string, options: RequestInit) {
   return res.json();
 }
 
+async function generateQRWithLabel(code: string, label: string): Promise<string> {
+  const qrCanvas = document.createElement('canvas');
+  await QRCode.toCanvas(qrCanvas, code, { width: 500, margin: 4 });
+  const targetCanvas = document.createElement('canvas');
+  targetCanvas.width = qrCanvas.width;
+  targetCanvas.height = qrCanvas.height + 60;
+  
+  const ctx = targetCanvas.getContext('2d');
+  if (!ctx) throw new Error("Could not get 2d context");
+  
+  ctx.fillStyle = "#FFFFFF";
+  ctx.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
+  ctx.drawImage(qrCanvas, 0, 0);
+  
+  ctx.fillStyle = "#000000";
+  ctx.font = "bold 28px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(label, targetCanvas.width / 2, targetCanvas.height - 30);
+  
+  return targetCanvas.toDataURL('image/png');
+}
+
 export const AdminPage: React.FC = () => {
   const [adminEmail, setAdminEmail] = useState<string>(() => sessionStorage.getItem('admin_email') || 'admin@nexus.com');
   const [adminPassword, setAdminPassword] = useState<string>(() => sessionStorage.getItem('admin_password') || '');
@@ -235,8 +258,8 @@ export const AdminPage: React.FC = () => {
     try {
       const zip = new JSZip();
       for (const loc of locations) {
-        // Generate a QR code as a data URI (base64 PNG)
-        const dataUrl = await QRCode.toDataURL(loc.code, { width: 500, margin: 2 });
+        // Generate a QR code canvas with label and convert to dataUrl
+        const dataUrl = await generateQRWithLabel(loc.code, loc.name);
         // The dataUrl is in format "data:image/png;base64,iVBORw0KGgo..."
         const base64Data = dataUrl.replace(/^data:image\/png;base64,/, "");
         zip.file(`${loc.name}_${loc.code}.png`, base64Data, { base64: true });
@@ -410,6 +433,18 @@ export const AdminPage: React.FC = () => {
     } catch (err: any) { setErrorMsg(err.message); }
   };
 
+  const handleDeleteLocation = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this location?")) return;
+    try {
+      await fetchJson(`${API_BASE}/locations/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      });
+      setSuccessMsg('Location deleted');
+      fetchDashboardData();
+    } catch (err: any) { setErrorMsg(err.message); }
+  };
+
   // Trails Logic
   const [trailFormName, setTrailFormName] = useState('');
   const [trailSteps, setTrailSteps] = useState<StepConfig[]>([]);
@@ -450,6 +485,21 @@ export const AdminPage: React.FC = () => {
         body: JSON.stringify({ name: trailFormName, steps: trailSteps })
       });
       setSuccessMsg('Trail saved');
+      fetchDashboardData();
+    } catch (err: any) { setErrorMsg(err.message); }
+  };
+
+  const handleDeleteTrail = async (trailName: string) => {
+    if (!window.confirm(`Are you sure you want to delete the trail "${trailName}"?`)) return;
+    try {
+      await fetchJson(`${API_BASE}/trails/${trailName}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      });
+      setSuccessMsg('Trail deleted');
+      if (selectedTrailName === trailName) {
+        openNewTrail();
+      }
       fetchDashboardData();
     } catch (err: any) { setErrorMsg(err.message); }
   };
@@ -566,15 +616,33 @@ export const AdminPage: React.FC = () => {
               </div>
             ))}
             {activeTab === 'locations' && sortedLocations.map(l => (
-              <div key={l.id} className="p-4 border-b">
-                <div className="font-medium text-sm">{l.name}</div>
-                <div className="text-xs text-gray-500 font-mono">{l.code}</div>
+              <div key={l.id} className="p-4 border-b flex justify-between items-center">
+                <div>
+                  <div className="font-medium text-sm">{l.name}</div>
+                  <div className="text-xs text-gray-500 font-mono">{l.code}</div>
+                </div>
+                <button
+                  onClick={() => l.id && handleDeleteLocation(l.id)}
+                  className="text-gray-400 hover:text-red-600 transition"
+                  title="Delete Location"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             ))}
             {activeTab === 'trails' && sortedTrails.map(t => (
-              <div key={t.name} onClick={() => openEditTrail(t)} className={`p-4 border-b cursor-pointer ${selectedTrailName === t.name ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-                <div className="font-medium text-sm">{t.name}</div>
-                <div className="text-xs text-gray-500">{t.steps.length} steps</div>
+              <div key={t.name} className={`p-4 border-b flex justify-between items-center ${selectedTrailName === t.name ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                <div onClick={() => openEditTrail(t)} className="cursor-pointer flex-1">
+                  <div className="font-medium text-sm">{t.name}</div>
+                  <div className="text-xs text-gray-500">{t.steps.length} steps</div>
+                </div>
+                <button
+                  onClick={() => handleDeleteTrail(t.name)}
+                  className="text-gray-400 hover:text-red-600 transition"
+                  title="Delete Trail"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             ))}
           </div>
@@ -709,7 +777,14 @@ export const AdminPage: React.FC = () => {
             <div className="max-w-4xl bg-white p-6 rounded border shadow-sm">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold">{selectedTrailName ? `Edit Trail: ${selectedTrailName}` : 'New Trail'}</h2>
-                <button onClick={handleSaveTrail} className="bg-black text-white px-4 py-2 rounded text-sm">Save Trail</button>
+                <div className="flex items-center gap-2">
+                  {selectedTrailName && (
+                    <button onClick={() => handleDeleteTrail(selectedTrailName)} className="text-red-600 hover:bg-red-50 px-3 py-2 rounded text-sm flex items-center gap-1 border border-red-200">
+                      <Trash2 className="w-4 h-4" /> Delete
+                    </button>
+                  )}
+                  <button onClick={handleSaveTrail} className="bg-black text-white px-4 py-2 rounded text-sm">Save Trail</button>
+                </div>
               </div>
 
               <input type="text" placeholder="Trail Name (e.g. Alpha Route)" className="w-full border p-2 rounded text-sm mb-6 font-semibold" value={trailFormName} onChange={e => setTrailFormName(e.target.value)} disabled={!!selectedTrailName} />

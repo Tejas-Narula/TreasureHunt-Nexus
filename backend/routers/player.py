@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, HTTPException, status, BackgroundTasks, Request
+from core.limiter import limiter
 from core.firebase import get_db
 from schemas.models import LoginRequest, LoginResponse, GameState, ScanRequest, ScanResponse, Team, Member, TeamInfoResponse, Trail
 from datetime import datetime
@@ -47,10 +48,11 @@ async def broadcast_ws(message: dict):
     await manager.broadcast(message)
 
 @router.post("/login", response_model=LoginResponse)
-def login(request: LoginRequest, background_tasks: BackgroundTasks):
+@limiter.limit("1000/minute")
+def login(request: Request, login_data: LoginRequest, background_tasks: BackgroundTasks):
     db = get_db()
     
-    teams_ref = db.collection("teams").where("team_id", "==", request.team_id).stream()
+    teams_ref = db.collection("teams").where("team_id", "==", login_data.team_id).stream()
     team_doc = None
     for doc in teams_ref:
         team_doc = doc
@@ -62,7 +64,7 @@ def login(request: LoginRequest, background_tasks: BackgroundTasks):
     team_data = team_doc.to_dict()
     team_data["id"] = team_doc.id
     
-    members_ref = db.collection("teams").document(team_doc.id).collection("members").where("phone_number", "==", request.phone_number).stream()
+    members_ref = db.collection("teams").document(team_doc.id).collection("members").where("phone_number", "==", login_data.phone_number).stream()
     member_doc = None
     for doc in members_ref:
         member_doc = doc
@@ -80,13 +82,15 @@ def login(request: LoginRequest, background_tasks: BackgroundTasks):
     )
 
 @router.get("/state", response_model=GameState)
-def get_game_state():
+@limiter.limit("20/minute")
+def get_game_state(request: Request):
     db = get_db()
     state = get_cached_game_state(db)
     return GameState(**state)
 
 @router.get("/team/{team_id}", response_model=TeamInfoResponse)
-def get_team_info(team_id: str):
+@limiter.limit("5000/minute")
+def get_team_info(request: Request, team_id: str):
     db = get_db()
     
     # fetch team
@@ -139,14 +143,15 @@ def get_team_info(team_id: str):
     return TeamInfoResponse(team=team, trail=trail)
 
 @router.post("/scan", response_model=ScanResponse)
-def scan_qr(request: ScanRequest, background_tasks: BackgroundTasks):
+@limiter.limit("5/minute")
+def scan_qr(request: Request, scan_data: ScanRequest, background_tasks: BackgroundTasks):
     db = get_db()
     
     state_dict = get_cached_game_state(db)
     if state_dict.get("status") != "active":
         raise HTTPException(status_code=403, detail="Game is not active")
         
-    teams_ref = db.collection("teams").where("team_id", "==", request.team_id).stream()
+    teams_ref = db.collection("teams").where("team_id", "==", scan_data.team_id).stream()
     team_doc = None
     for doc in teams_ref:
         team_doc = doc
@@ -155,7 +160,7 @@ def scan_qr(request: ScanRequest, background_tasks: BackgroundTasks):
     if not team_doc:
         raise HTTPException(status_code=404, detail="Team not found")
         
-    member_ref = db.collection("teams").document(team_doc.id).collection("members").document(request.player_id)
+    member_ref = db.collection("teams").document(team_doc.id).collection("members").document(scan_data.player_id)
     member_doc = member_ref.get()
     if not member_doc.exists:
         raise HTTPException(status_code=404, detail="Player not found")
@@ -202,7 +207,7 @@ def scan_qr(request: ScanRequest, background_tasks: BackgroundTasks):
         if step_config.get("step_type") != "qr_scan":
             raise HTTPException(status_code=403, detail="Current step is a special task, cannot be bypassed with QR")
             
-        if step_config.get("location_name") != request.qr_token:
+        if step_config.get("location_name") != scan_data.qr_token:
             raise HTTPException(status_code=400, detail="Invalid QR token")
             
         new_step = current_step + 1
@@ -241,7 +246,7 @@ def scan_qr(request: ScanRequest, background_tasks: BackgroundTasks):
 
     result = process_scan_in_transaction(transaction, team_ref)
     
-    background_tasks.add_task(broadcast_ws, {"type": "team_updated", "team_id": request.team_id})
+    background_tasks.add_task(broadcast_ws, {"type": "team_updated", "team_id": scan_data.team_id})
     
     return ScanResponse(
         success=True,

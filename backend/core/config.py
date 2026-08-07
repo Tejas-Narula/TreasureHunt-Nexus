@@ -7,7 +7,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 class Settings(BaseSettings):
     ADMIN_SECRET_KEY: str = "default_dev_secret_key"
     ADMIN_EMAIL: str = "admin@nexus.com"
-    ADMIN_PASSWORD: str = "boomboom"
+    ADMIN_PASSWORD: str
     
     # Can be a JSON string of the service account or a path
     FIREBASE_SERVICE_ACCOUNT_B64: Optional[str] = None

@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Request
 from core.firebase import get_db
+from core.limiter import limiter
 from core.security import verify_admin
 from core.websocket import manager
 from schemas.models import TeamCreate, TeamWithMemberCreate, MemberCreate, MemberUpdate, OverrideStepRequest, Trail, GameState, Location
@@ -22,7 +23,8 @@ def get_admin_game_state():
     return GameState(**state_doc.to_dict())
 
 @router.put("/game/start")
-def start_game(background_tasks: BackgroundTasks):
+@limiter.limit("20/minute")
+def start_game(request: Request, background_tasks: BackgroundTasks):
     db = get_db()
     
     # Ensure all teams have a balanced trail assignment
@@ -52,7 +54,8 @@ def start_game(background_tasks: BackgroundTasks):
     return {"status": "Game started"}
 
 @router.put("/game/pause")
-def pause_game(background_tasks: BackgroundTasks):
+@limiter.limit("20/minute")
+def pause_game(request: Request, background_tasks: BackgroundTasks):
     db = get_db()
     db.collection("game_config").document("global_state").set({
         "status": "paused"
@@ -61,7 +64,8 @@ def pause_game(background_tasks: BackgroundTasks):
     return {"status": "Game paused"}
 
 @router.put("/game/stop")
-def stop_game(background_tasks: BackgroundTasks):
+@limiter.limit("20/minute")
+def stop_game(request: Request, background_tasks: BackgroundTasks):
     db = get_db()
     db.collection("game_config").document("global_state").set({
         "status": "ended"
@@ -70,7 +74,8 @@ def stop_game(background_tasks: BackgroundTasks):
     return {"status": "Game stopped"}
 
 @router.put("/game/reset")
-def reset_game(background_tasks: BackgroundTasks):
+@limiter.limit("20/minute")
+def reset_game(request: Request, background_tasks: BackgroundTasks):
     db = get_db()
     db.collection("game_config").document("global_state").set({
         "status": "waiting",
@@ -334,6 +339,15 @@ def create_location(location: Location):
     db.collection("locations").add(location.model_dump())
     return {"status": "Location created"}
 
+@router.delete("/locations/{location_id}")
+def delete_location(location_id: str):
+    db = get_db()
+    loc_ref = db.collection("locations").document(location_id)
+    if not loc_ref.get().exists:
+        raise HTTPException(status_code=404, detail="Location not found")
+    loc_ref.delete()
+    return {"status": "Location deleted"}
+
 @router.get("/trails")
 def get_trails():
     db = get_db()
@@ -351,3 +365,25 @@ def create_trail(trail: Trail):
     trail_data = trail.model_dump()
     db.collection("trails").document(trail.name).set(trail_data)
     return {"status": "Trail created"}
+
+@router.delete("/trails/{trail_name}")
+def delete_trail(trail_name: str, background_tasks: BackgroundTasks):
+    db = get_db()
+    trail_ref = db.collection("trails").document(trail_name)
+    if not trail_ref.get().exists:
+        raise HTTPException(status_code=404, detail="Trail not found")
+    
+    # Unassign this trail from any team that currently has it
+    teams_ref = db.collection("teams").where("assigned_trail", "==", trail_name).stream()
+    for team_doc in teams_ref:
+        team_doc.reference.update({"assigned_trail": None})
+        
+    trail_ref.delete()
+    background_tasks.add_task(broadcast_ws, {"type": "teams_updated"})
+    return {"status": "Trail deleted"}
+
+@router.get("/ws-connections")
+def get_ws_connections():
+    return {"live_connections": len(manager.active_connections)}
+
+

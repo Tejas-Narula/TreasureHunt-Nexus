@@ -21,6 +21,12 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
+def decode_access_token(token: str) -> Optional[dict]:
+    try:
+        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except JWTError:
+        return None
+
 def get_current_player(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -29,15 +35,14 @@ def get_current_player(token: str = Depends(oauth2_scheme)):
     )
     if not token:
         raise credentials_exception
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        team_id: str = payload.get("team_id")
-        player_id: str = payload.get("player_id")
-        if team_id is None or player_id is None:
-            raise credentials_exception
-        return {"team_id": team_id, "player_id": player_id}
-    except JWTError:
+    payload = decode_access_token(token)
+    if not payload:
         raise credentials_exception
+    team_id: str = payload.get("team_id")
+    player_id: str = payload.get("player_id")
+    if team_id is None or player_id is None:
+        raise credentials_exception
+    return {"team_id": team_id, "player_id": player_id}
 
 from passlib.context import CryptContext
 

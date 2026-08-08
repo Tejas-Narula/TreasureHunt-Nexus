@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, status, BackgroundTasks, Request, Depends
-from core.limiter import limiter
+from core.limiter import limiter, get_player_limiter_key
 from core.firebase import get_db
 from core.auth import create_access_token, get_current_player, verify_token_hash
 from schemas.models import LoginRequest, LoginResponse, GameState, ScanRequest, ScanResponse, Team, Member, TeamInfoResponse, Trail, PublicTeam
@@ -90,14 +90,13 @@ def login(request: Request, login_data: LoginRequest, background_tasks: Backgrou
     )
 
 @router.get("/state", response_model=GameState)
-@limiter.limit("20/minute")
 def get_game_state(request: Request):
     db = get_db()
     state = get_cached_game_state(db)
     return GameState(**state)
 
 @router.get("/team/{team_id}", response_model=TeamInfoResponse)
-@limiter.limit("5000/minute")
+@limiter.limit("5000/minute", key_func=get_player_limiter_key)
 def get_team_info(request: Request, team_id: str, current_player: dict = Depends(get_current_player)):
     if current_player["team_id"] != team_id:
         raise HTTPException(status_code=403, detail="Not authorized to view this team")
@@ -159,7 +158,7 @@ def get_team_info(request: Request, team_id: str, current_player: dict = Depends
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/scan", response_model=ScanResponse)
-@limiter.limit("5/minute")
+@limiter.limit("5/minute", key_func=get_player_limiter_key)
 def scan_qr(request: Request, scan_data: ScanRequest, background_tasks: BackgroundTasks, current_player: dict = Depends(get_current_player)):
     if current_player["team_id"] != scan_data.team_id or current_player["player_id"] != scan_data.player_id:
         raise HTTPException(status_code=403, detail="Invalid token identity")
